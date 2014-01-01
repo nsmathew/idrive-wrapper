@@ -120,6 +120,36 @@ process_options(){
 }
 
 #---  FUNCTION  ----------------------------------------------------------------
+#          NAME:  get_password
+#   DESCRIPTION:  Get the user password
+#    PARAMETERS:  na
+#       RETURNS:  na
+#-------------------------------------------------------------------------------
+get_password(){
+	read -s -p "Enter password for ${USERID}:" PWD
+	echo
+}
+#---  FUNCTION  ----------------------------------------------------------------
+#          NAME:  get_server
+#   DESCRIPTION:  Get the IDrive server details where backup is done
+#    PARAMETERS:  na
+#       RETURNS:  na
+#-------------------------------------------------------------------------------
+get_server(){
+	echo "INFO: Retrieving server details..."
+	RETVAL=$(idevsutil --getServerAddress ${USERID} --password-file=${PWD})
+	SERVER=$(echo ${RETVAL} | awk -F'[=| ]' '/SUCCESS/{v1=$5}/ERROR/{v1=$3} {printf v1}' | awk -F'"' '{printf $2}')
+	#If return contains error then exit
+	if [ ${SERVER} = "ERROR" ]
+	then
+		echo "ERROR: Cannot get server details, exiting."
+		echo ${RETVAL}
+		clean_up_exit 1
+	fi
+	echo "INFO: Server recevied as ${SERVER}"
+}
+
+#---  FUNCTION  ----------------------------------------------------------------
 #          NAME:  call_commands
 #   DESCRIPTION:  This function will call the required functions based on user options from command line
 #    PARAMETERS:  na
@@ -133,10 +163,10 @@ call_commands(){
 		clean_up_exit 0
 	fi
 	if [ ${u_FLG:-0} -eq 1 ] ; then
-		echo "Upload"
+		upload
 	fi
 	if [ ${d_FLG:-0} -eq 1 ] ; then
-		echo "Delete"
+		delete
 	fi
 	if [ ${g_FLG:-0} -eq 1 ] ; then
 		echo "Get with Arg"
@@ -166,6 +196,42 @@ call_commands(){
 	if [ ${s_FLG:-0} -eq 1 ] ; then
 		echo "Space Usage"
 	fi
+}
+
+#---  FUNCTION  ----------------------------------------------------------------
+#          NAME:  upload
+#   DESCRIPTION:  Upload files/folders to IDrive based on config file
+#    PARAMETERS:  na
+#       RETURNS:  na
+#-------------------------------------------------------------------------------
+upload(){
+	if [ ! -s "${FILELIST_UPLOAD}" ] ; then
+		echo "No file/folder list available. Nothing will be uploaded."
+		return
+	fi
+	echo "INFO: File/folder list for upload is as below..."
+	cat "${FILELIST_UPLOAD}"
+	echo "INFO: Starting backup..."
+	idevsutil --xml-output --password-file="${PWD}" --files-from="${FILELIST_UPLOAD}" / ${USERID}@${SERVER}::home/"${DESTFOLDER}"
+	echo "INFO: Upload is complete, check log for any errors."
+}
+
+#---  FUNCTION  ----------------------------------------------------------------
+#          NAME:  delete
+#   DESCRIPTION:  Delete files/folder to IDrive based on config file
+#    PARAMETERS:  na
+#       RETURNS:  na
+#-------------------------------------------------------------------------------
+delete(){
+	if [ ! -s "${FILELIST_DELETE}" ] ; then
+		echo "No file/folder list available. Nothing will be deleted."
+		return
+	fi
+	echo "INFO: File/folder list for deletion is as below..."
+	cat "${FILELIST_DELETE}"
+	echo "INFO: Starting file deletion..."
+	idevsutil --xml-output --password-file=${PWD} --delete-items --files-from=${FILELIST_DELETE} ${USERID}@${SERVER}::home/${DESTFOLDER}
+	echo "INFO: File deletion is complete, check log for any errors."
 }
 
 #---  FUNCTION  ----------------------------------------------------------------
@@ -204,6 +270,8 @@ process_options $# $*
 echo "IDrive backup wrapper script started."
 echo $(date +"%Y-%b-%d, %H:%M:%S")          # generate timestamp : YYYYMMDD-hhmmss
 read_config_init
+get_password
+get_server
 call_commands
 clean_up_exit 0
 
