@@ -68,7 +68,6 @@ read_config_init(){
 #       RETURNS:  na
 #-------------------------------------------------------------------------------
 process_options(){
-	echo $#
 	if [ $# -lt 2 ] ; then
 		show_help 1
 		clean_up_exit 1
@@ -104,8 +103,8 @@ process_options(){
 				shift;;
 			-s)	s_FLG=1 #Space Usage
 				shift;;
-			-h)	h_FLG=1 #Help
-				break;;
+			-h)	show_help 2 #Help
+				clean_up_exit 0;; #If help is a option then just display help and exit
 			-G)	G_FLG=1 #Get from parent,  similar to 'g' but no args
 				break;;
 			-L)	L_FLG=1 #List parent, similar to 'l' but no args
@@ -156,12 +155,6 @@ get_server(){
 #       RETURNS:  na
 #-------------------------------------------------------------------------------
 call_commands(){
-	
-	if [ ${h_FLG:-0} -eq 1 ] ; then
-		echo "Help"
-		show_help 2
-		clean_up_exit 0
-	fi
 	if [ ${u_FLG:-0} -eq 1 ] ; then
 		upload
 	fi
@@ -262,13 +255,11 @@ show_help(){
 	fi
 }
 
-#Start Here
+#Start Here--
 #Process the command line options
 process_options $# $*
-
 #Read the config file and assign params and populate file lists
 echo "IDrive backup wrapper script started."
-echo $(date +"%Y-%b-%d, %H:%M:%S")          # generate timestamp : YYYYMMDD-hhmmss
 read_config_init
 get_password
 get_server
