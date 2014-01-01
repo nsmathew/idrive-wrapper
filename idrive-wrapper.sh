@@ -34,9 +34,14 @@
 #-------------------------------------------------------------------------------
 read_config_init(){
 	#initial params
-	CONFIG=~/.config/.idrivewrc
-	HELPFILE=TODO
-	WORKDIR=`mktemp -d`
+	CONFIG=~/.config/.idrivewrc #COnfig file
+	#Config keys
+	c_username="UNAME"
+	c_uploadlist="UPLOAD_LIST"
+	c_deletelist="DELETE_LIST"
+	c_idrivehome="IDRIVE_HOME_FOLDER"
+	HELPFILE=TODO #Helpfile
+	WORKDIR=`mktemp -d` #Temp working directory
 	
 	#If config file doesn exist then exit
 	if  [ ! -s "${CONFIG}" ]; then
@@ -46,17 +51,23 @@ read_config_init(){
 	
 	echo "INFO: Using config file '${CONFIG}'"
 	#Populate the params from config file
-	USERID=`grep 'UNAME'  "${CONFIG}" | cut -d'=' -f 2`
+	USERID=`grep "${c_username}"  "${CONFIG}" | cut -d'=' -f 2`
 	echo "INFO: User ID is '${USERID}'"
-	DESTFOLDER=`grep 'IDRIVE_HOME_FOLDER'  "${CONFIG}" | cut -d'=' -f 2`
+	DESTFOLDER=`grep "${c_idrivehome}" "${CONFIG}" | cut -d'=' -f 2`
 	echo "INFO: Parent folder in IDrive is '${DESTFOLDER}'"
 	FILELIST_UPLOAD=${WORKDIR}/${USERID}_UPLOAD
 	FILELIST_DELETE=${WORKDIR}/${USERID}-DELETE
-	grep 'UPLOAD_LIST' "${CONFIG}" | cut -d'=' -f 2 | tr ';' '\n' | while read PTH; do
+	grep "${c_uploadlist}" "${CONFIG}" | cut -d'=' -f 2 | tr ';' '\n' | while read PTH; do
+		if [ "${PTH}" = "" ] || [ "${PTH}" = "${c_uploadlist}" ] ; then
+			continue	
+		fi
 		echo "${PTH}" >> ${FILELIST_UPLOAD}
 	done
 	PTH=""
-	grep 'DELETE_LIST' "${CONFIG}" | cut -d'=' -f 2 | tr ';' '\n' | while read PTH; do
+	grep "${c_deletelist}" "${CONFIG}" | cut -d'=' -f 2 | tr ';' '\n' | while read PTH; do
+		if [ "${PTH}" = "" ] || [ "${PTH}" = "${c_deletelist}" ] ; then
+			continue	
+		fi
 		echo "${PTH}" >> ${FILELIST_DELETE}
 	done
 }
@@ -125,7 +136,7 @@ process_options(){
 #       RETURNS:  na
 #-------------------------------------------------------------------------------
 get_password(){
-	read -s -p "Enter password for ${USERID}:" PWD
+	read -s -p "--Enter password for ${USERID}:" PWD
 	echo
 }
 #---  FUNCTION  ----------------------------------------------------------------
