@@ -34,12 +34,14 @@
 #-------------------------------------------------------------------------------
 read_config_init(){
 	#initial params
+	TIMESTMP=$(date +"%Y%m%d-%H%M%S-%N") # generate timestamp : YYYYMMDD-hhmmss
 	CONFIG=~/.config/.idrivewrc #COnfig file
 	#Config keys
 	c_username="UNAME"
 	c_uploadlist="UPLOAD_LIST"
 	c_deletelist="DELETE_LIST"
 	c_idrivehome="IDRIVE_HOME_FOLDER"
+	c_aclbackup="ACL_BACKUP"
 	HELPFILE=TODO #Helpfile
 	WORKDIR=`mktemp -d` #Temp working directory
 	
@@ -51,14 +53,29 @@ read_config_init(){
 	
 	echo "INFO: Using config file '${CONFIG}'"
 	#Populate the params from config file
-	USERID=`grep "${c_username}"  "${CONFIG}" | cut -d'=' -f 2`
+	#USERID
+	#If no user ID given in command line then read from config file
+	if [ "${USERID_CMDLINE}" = "" ] ; then
+		USERID=`grep "${c_username}"  "${CONFIG}" | cut -d'=' -f 2 -s`
+		if [ "${USERID}" = "" ] ; then
+			echo "ERROR: No user in command line nor config file. Exiting Program."
+			clean_up_exit 1
+		fi
+	else
+		USERID="${USERID_CMDLINE}"
+	fi
 	echo "INFO: User ID is '${USERID}'"
-	DESTFOLDER=`grep "${c_idrivehome}" "${CONFIG}" | cut -d'=' -f 2`
+	#IDRIVEFOLDER
+	DESTFOLDER=`grep "${c_idrivehome}" "${CONFIG}" | cut -d'=' -f 2 -s`
+	if [  "${DESTFOLDER}" = "" ] ;  then
+		DESTFOLDER="/"
+	fi
 	echo "INFO: Parent folder in IDrive is '${DESTFOLDER}'"
+	#UPLOAD/DELETE FILEISTS
 	FILELIST_UPLOAD=${WORKDIR}/${USERID}_UPLOAD
 	FILELIST_DELETE=${WORKDIR}/${USERID}-DELETE
-	grep "${c_uploadlist}" "${CONFIG}" | cut -d'=' -f 2 | tr ';' '\n' | while read PTH; do
-		if [ "${PTH}" = "" ] || [ "${PTH}" = "${c_uploadlist}" ] ; then
+	grep "${c_uploadlist}" "${CONFIG}" | cut -d'=' -f 2 -s  | tr ';' '\n' | while read PTH; do
+		if [ "${PTH}" = "" ] ; then
 			continue	
 		fi
 		echo "${PTH}" >> ${FILELIST_UPLOAD}
@@ -70,6 +87,9 @@ read_config_init(){
 		fi
 		echo "${PTH}" >> ${FILELIST_DELETE}
 	done
+	PTH=""
+	#ACL BACKUP PATH
+	ACL_BACKUP=`grep "${c_aclbackup}"  "${CONFIG}" | cut -d'=' -f 2 -s`
 }
 
 #---  FUNCTION  ----------------------------------------------------------------
@@ -79,11 +99,12 @@ read_config_init(){
 #       RETURNS:  na
 #-------------------------------------------------------------------------------
 process_options(){
+	echo $#
 	if [ $# -lt 2 ] ; then
 		show_help 1
 		clean_up_exit 1
 	fi
-	ARGS=`getopt -q -o udg:l:v:p:shGLVP -- $@`
+	ARGS=`getopt  -o udg:l:v:p:shGLP -- $@`
 	if [ $? != 0 ]
 	then
 		show_help 1
@@ -117,16 +138,17 @@ process_options(){
 			-h)	show_help 2 #Help
 				clean_up_exit 0;; #If help is a option then just display help and exit
 			-G)	G_FLG=1 #Get from parent,  similar to 'g' but no args
-				break;;
+				shift;;
 			-L)	L_FLG=1 #List parent, similar to 'l' but no args
-				break;;
+				shift;;
 			-P)	P_FLG=1 #Property info for parent, similar to 'p' but no args
-				break;;
-			*)	echo "Unrecognized option $1"
-				show_help 1
-				clean_up_exit 1
+				shift;;
 		esac
 	done
+	#If a non-option argument is given then assign it as the user ID
+	if [ ! "$3" = "" ] ; then 
+		USERID_CMDLINE=$3
+	fi
 }
 
 #---  FUNCTION  ----------------------------------------------------------------
@@ -209,6 +231,9 @@ call_commands(){
 #       RETURNS:  na
 #-------------------------------------------------------------------------------
 upload(){
+	#Perform ACL backup if requested first and then upload
+	backup_ACL
+
 	if [ ! -s "${FILELIST_UPLOAD}" ] ; then
 		echo "No file/folder list available. Nothing will be uploaded."
 		return
@@ -216,8 +241,37 @@ upload(){
 	echo "INFO: File/folder list for upload is as below..."
 	cat "${FILELIST_UPLOAD}"
 	echo "INFO: Starting backup..."
-	idevsutil --xml-output --password-file="${PWD}" --files-from="${FILELIST_UPLOAD}" / ${USERID}@${SERVER}::home/"${DESTFOLDER}"
+	idevsutil --xml-output --password-file="${PWD}" --files-from="${FILELIST_UPLOAD}" / ${USERID}@${SERVER}::home"${DESTFOLDER}"
 	echo "INFO: Upload is complete, check log for any errors."
+}
+
+#---  FUNCTION  ----------------------------------------------------------------
+#          NAME:  backup_ACL
+#   DESCRIPTION:  Backup the ACLs for the files and folders included in this run. Save filename with timestamp to make it unique for each run.
+#    PARAMETERS:  
+#       RETURNS:  
+#-------------------------------------------------------------------------------
+backup_ACL(){
+	if [ "${ACL_BACKUP}" = "" ] ; then
+		echo "INFO: ACL Backup not requested in config file."
+		return
+	fi
+	if [ ! -d "${ACL_BACKUP}" ] ; then
+		echo "ERROR: ACL Backup folder ${ACL_BACKUP} is not valid/does not exist. ACL backup will not be performed."
+		return
+	fi
+	filename="${ACL_BACKUP%/}"/idrive-acls-${TIMESTMP}.txt
+	grep "${c_uploadlist}" "${CONFIG}" | cut -d'=' -f 2 | tr ';' '\n' | while read PTH; do
+		if [ "${PTH}" = "" ] || [ "${PTH}" = "${c_uploadlist}" ] ; then
+			continue	
+		fi
+		getfacl -R "${PTH}" >> ${filename}
+	done
+	if [ $? != 0 ] ; then
+		echo "ERROR: ACL backup might not have completed. Please check logs and verify in backup location."
+	else
+		echo "INFO: ACL Backup completed in ${filename}"
+	fi
 }
 
 #---  FUNCTION  ----------------------------------------------------------------
@@ -234,8 +288,18 @@ delete(){
 	echo "INFO: File/folder list for deletion is as below..."
 	cat "${FILELIST_DELETE}"
 	echo "INFO: Starting file deletion..."
-	idevsutil --xml-output --password-file=${PWD} --delete-items --files-from=${FILELIST_DELETE} ${USERID}@${SERVER}::home/${DESTFOLDER}
+	idevsutil --xml-output --password-file=${PWD} --delete-items --files-from=${FILELIST_DELETE} ${USERID}@${SERVER}::home${DESTFOLDER}
 	echo "INFO: File deletion is complete, check log for any errors."
+}
+
+#---  FUNCTION  ----------------------------------------------------------------
+#          NAME:  download
+#   DESCRIPTION:  Download a file based on specified path as argument
+#    PARAMETERS:  
+#       RETURNS:  
+#-------------------------------------------------------------------------------
+download(){
+	echo "Download function"
 }
 
 #---  FUNCTION  ----------------------------------------------------------------
@@ -268,7 +332,7 @@ show_help(){
 
 #Start Here--
 #Process the command line options
-process_options $# $*
+process_options $# $@
 #Read the config file and assign params and populate file lists
 echo "IDrive backup wrapper script started."
 read_config_init
