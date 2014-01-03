@@ -74,14 +74,14 @@ read_config_init(){
 	#UPLOAD/DELETE FILEISTS
 	FILELIST_UPLOAD=${WORKDIR}/${USERID}_UPLOAD
 	FILELIST_DELETE=${WORKDIR}/${USERID}-DELETE
-	grep "${c_uploadlist}" "${CONFIG}" | cut -d'=' -f 2 -s  | tr ';' '\n' | while read PTH; do
+	grep "${c_uploadlist}" "${CONFIG}" | cut -d'=' -f 2 -s  | tr ',' '\n' | while read PTH; do
 		if [ "${PTH}" = "" ] ; then
 			continue	
 		fi
 		echo "${PTH}" >> ${FILELIST_UPLOAD}
 	done
 	PTH=""
-	grep "${c_deletelist}" "${CONFIG}" | cut -d'=' -f 2 | tr ';' '\n' | while read PTH; do
+	grep "${c_deletelist}" "${CONFIG}" | cut -d'=' -f 2 | tr ',' '\n' | while read PTH; do
 		if [ "${PTH}" = "" ] ; then
 			continue	
 		fi
@@ -263,7 +263,7 @@ backup_ACL(){
 		return
 	fi
 	filename="${ACL_BACKUP%/}"/idrive-acls-${TIMESTMP}.txt
-	grep "${c_uploadlist}" "${CONFIG}" | cut -d'=' -f 2 -s | tr ';' '\n' | while read PTH; do
+	grep "${c_uploadlist}" "${CONFIG}" | cut -d'=' -f 2 -s | tr ',' '\n' | while read PTH; do
 		if [ "${PTH}" = "" ] ; then
 			continue	
 		fi
