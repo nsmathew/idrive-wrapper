@@ -82,7 +82,7 @@ read_config_init(){
 	done
 	PTH=""
 	grep "${c_deletelist}" "${CONFIG}" | cut -d'=' -f 2 | tr ';' '\n' | while read PTH; do
-		if [ "${PTH}" = "" ] || [ "${PTH}" = "${c_deletelist}" ] ; then
+		if [ "${PTH}" = "" ] ; then
 			continue	
 		fi
 		echo "${PTH}" >> ${FILELIST_DELETE}
@@ -95,16 +95,15 @@ read_config_init(){
 #---  FUNCTION  ----------------------------------------------------------------
 #          NAME:  process_options
 #   DESCRIPTION:  Process the command line options
-#    PARAMETERS:  na
+#    PARAMETERS:  Cmd Line Arg COunt, Cmd Line Args
 #       RETURNS:  na
 #-------------------------------------------------------------------------------
 process_options(){
-	echo $#
 	if [ $# -lt 2 ] ; then
 		show_help 1
 		clean_up_exit 1
 	fi
-	ARGS=`getopt  -o udg:l:v:p:shGLP -- $@`
+	ARGS=`getopt  -o udg:l:v:p:shG:LP -- $@`
 	if [ $? != 0 ]
 	then
 		show_help 1
@@ -120,6 +119,7 @@ process_options(){
 				shift;;
 			-g)	g_FLG=1 #Get/Download with file/folder
 				g_ARG=$2
+				shift
 				shift;;
 			-l)	l_FLG=1 #List file/folder
 				l_ARG=$2
@@ -137,7 +137,9 @@ process_options(){
 				shift;;
 			-h)	show_help 2 #Help
 				clean_up_exit 0;; #If help is a option then just display help and exit
-			-G)	G_FLG=1 #Get from parent,  similar to 'g' but no args
+			-G)	G_FLG=1 #Download location for files/folders,should be used only with 'g' option.
+				G_ARG=$2
+				shift
 				shift;;
 			-L)	L_FLG=1 #List parent, similar to 'l' but no args
 				shift;;
@@ -161,6 +163,7 @@ get_password(){
 	read -s -p "--Enter password for ${USERID}:" PWD
 	echo
 }
+
 #---  FUNCTION  ----------------------------------------------------------------
 #          NAME:  get_server
 #   DESCRIPTION:  Get the IDrive server details where backup is done
@@ -194,12 +197,11 @@ call_commands(){
 	if [ ${d_FLG:-0} -eq 1 ] ; then
 		delete
 	fi
+	#-g can be run without -G. But -G needs -g to be specified, hence else if used.
 	if [ ${g_FLG:-0} -eq 1 ] ; then
-		echo "Get with Arg"
-		echo "Arg: ${g_ARG}"
-	fi
-	if [ ${G_FLG:-0} -eq 1 ] ; then
-		echo "Get No Arg"
+		download
+	elif [ ${G_FLG:-0} -eq 1 ] ; then
+		echo "ERROR: No source files/folders provided with -g. Nothing will be downloaded."
 	fi
 	if [ ${l_FLG:-0} -eq 1 ] ; then
 		echo "List with Arg"
@@ -261,12 +263,13 @@ backup_ACL(){
 		return
 	fi
 	filename="${ACL_BACKUP%/}"/idrive-acls-${TIMESTMP}.txt
-	grep "${c_uploadlist}" "${CONFIG}" | cut -d'=' -f 2 | tr ';' '\n' | while read PTH; do
-		if [ "${PTH}" = "" ] || [ "${PTH}" = "${c_uploadlist}" ] ; then
+	grep "${c_uploadlist}" "${CONFIG}" | cut -d'=' -f 2 -s | tr ';' '\n' | while read PTH; do
+		if [ "${PTH}" = "" ] ; then
 			continue	
 		fi
 		getfacl -R "${PTH}" >> ${filename}
 	done
+	PTH=""
 	if [ $? != 0 ] ; then
 		echo "ERROR: ACL backup might not have completed. Please check logs and verify in backup location."
 	else
@@ -299,7 +302,28 @@ delete(){
 #       RETURNS:  
 #-------------------------------------------------------------------------------
 download(){
-	echo "Download function"
+	filelist_download="${WORKDIR}"/"${USERID}"_DOWNLOAD
+	#Create a temp file with the paths provided in command line
+	echo "${g_ARG}" | tr ',' '\n' | while read PTH; do
+		if [ "${PTH}" = "" ] ; then
+			continue	
+		fi
+		echo "${PTH}" >> ${filelist_download}
+	done
+	#If -G is set then use that as download location if valid else use /tmp/idrive-downloads/
+	if [ ${G_FLG} -ne 1 ] || [ ! -d "${G_ARG}" ] ; then
+		mkdir -p /tmp/idrive-downloads/
+		download_location="/tmp/idrive-downloads/"
+		echo "INFO: No valid download location specified, using ${download_location}"
+	else
+		download_location="${G_ARG}"
+		echo "INFO: Files will be downloaded to ${download_location}"
+	fi
+	echo "INFO: Download list is..."
+	cat ${filelist_download}
+	echo "INFO: Starting download..."
+	idevsutil --xml-output --password-file=${PWD} --files-from="${filelist_download}" ${USERID}@${SERVER}::home/ "${download_location}" 
+	echo "INFO: Download complete. Check logs for errors. If ACLs were backed up, file permissions/owner/group can be restored using the setfacl command."
 }
 
 #---  FUNCTION  ----------------------------------------------------------------
