@@ -173,7 +173,7 @@ get_password(){
 get_server(){
 	echo "INFO: Retrieving server details..."
 	RETVAL=$(idevsutil --getServerAddress ${USERID} --password-file=${PWD})
-	SERVER=$(echo ${RETVAL} | awk -F'[=| ]' '/SUCCESS/{v1=$5}/ERROR/{v1=$3} {printf v1}' | awk -F'"' '{printf $2}')
+	SERVER=$(echo ${RETVAL} | awk -F'["]' '/SUCCESS/{v1=$4}/ERROR/{v1=$2} {printf v1}')
 	#If return contains error then exit
 	if [ ${SERVER} = "ERROR" ]
 	then
@@ -222,7 +222,7 @@ call_commands(){
 		echo "Properties No Arg"
 	fi	
 	if [ ${s_FLG:-0} -eq 1 ] ; then
-		echo "Space Usage"
+		space_usage
 	fi
 }
 
@@ -324,6 +324,28 @@ download(){
 	echo "INFO: Starting download..."
 	idevsutil --xml-output --password-file=${PWD} --files-from="${filelist_download}" ${USERID}@${SERVER}::home/ "${download_location}" 
 	echo "INFO: Download complete. Check logs for errors. If ACLs were backed up, file permissions/owner/group can be restored using the setfacl command."
+}
+
+
+#---  FUNCTION  ----------------------------------------------------------------
+#          NAME:  space_usage
+#   DESCRIPTION:  Gets the space usage and file count from IDrive
+#    PARAMETERS:  na
+#       RETURNS:  na
+#-------------------------------------------------------------------------------
+space_usage(){
+	echo "INFO: Requesting for space usage..." 
+	RETVAL=$(idevsutil --xml-output --password-file=${PWD} --get-quota ${USERID}@${SERVER}::home/)
+	echo "${RETVAL}" | grep "SUCCESS" 2>&1 >/dev/null
+	if [ $? -eq 1 ] ; then
+		echo "ERROR: Cannot retrieve space usage."
+		echo "${RETVAL}"
+		return
+	fi
+	read tq uq flc <<< $(echo "${RETVAL}" | tr -d '\n' | awk -F'"' '/totalquota/{v1=$4}/usedquota/{v2=$6}/filecount/{v3=$8} {printf v1" " v2" "v3}') 
+	echo "TOTAL SPACE:" `expr ${tq} / 1073741824` "GB"
+	echo "USED SPACE:" `expr ${uq} / 1073741824` "GB"
+	echo "TOTAL FILE: ${flc}"
 }
 
 #---  FUNCTION  ----------------------------------------------------------------
