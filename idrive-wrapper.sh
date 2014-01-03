@@ -9,7 +9,8 @@
 # 
 #        AUTHOR: Nitin Mathew, nitn.mathew2000@hotmail.com
 #       CREATED: 30/12/2013 21:19
-#     COPYRIGHT: Copyright for IDrive's utility idevsutil is with IDrive, http://evs.idrive.com/terms-of-service.htm
+#     COPYRIGHT: Copyright for IDrive's utility idevsutil is with IDrive, 
+#		 http://evs.idrive.com/terms-of-service.htm
 #		 Copyright for rest of the script Nitin Mathew, 2013
 #
 # This program is free software: you can redistribute it and/or modify
@@ -25,6 +26,66 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #===============================================================================
+
+##MAIN FLOW FUNCTIONS##
+#---  FUNCTION  ----------------------------------------------------------------
+#          NAME:  process_options
+#   DESCRIPTION:  Process the command line options
+#    PARAMETERS:  Cmd Line Arg COunt, Cmd Line Args
+#       RETURNS:  na
+#-------------------------------------------------------------------------------
+process_options(){
+	if [ $# -lt 2 ] ; then
+		show_help 1
+		clean_up_exit 1
+	fi
+	ARGS=`getopt  -o udg:l:v:p:shG:L -- $@`
+	if [ $? != 0 ]
+	then
+		show_help 1
+		clean_up_exit 1
+	fi
+	eval set -- "${ARGS}"
+	while [ $1 != -- ]
+	do
+		case $1 in 
+			-u)	u_FLG=1 #Upload
+				shift;;
+			-d)	d_FLG=1 #Delete
+				shift;;
+			-g)	g_FLG=1 #Get/Download with file/folder
+				g_ARG=$2
+				shift
+				shift;;
+			-l)	l_FLG=1 #List file/folder
+				l_ARG=$2
+				shift
+				shift;;
+			-v)	v_FLG=1 #Version info for file/folder
+				v_ARG=$2
+				shift
+				shift;;
+			-p)	p_FLG=1 #File properties for file/folder
+				p_ARG=$2
+				shift
+				shift;;
+			-s)	s_FLG=1 #Space Usage
+				shift;;
+			-h)	show_help 2 #Help
+				clean_up_exit 0;; #If help is a option then just display help and exit
+			-G)	G_FLG=1 #Download location for files/folders,should be used only with 'g' option.
+				G_ARG=$2
+				shift
+				shift;;
+			-L)	L_FLG=1 #List parent, similar to 'l' but no args
+				shift;;
+		esac
+	done
+	#If a non-option argument is given then assign it as the user ID
+	if [ ! "$3" = "" ] ; then 
+		USERID_CMDLINE=$3
+	fi
+}
 
 #---  FUNCTION  ----------------------------------------------------------------
 #          NAME:  read_config_init
@@ -72,8 +133,8 @@ read_config_init(){
 	fi
 	echo "INFO: Parent folder in IDrive is '${DESTFOLDER}'"
 	#UPLOAD/DELETE FILEISTS
-	FILELIST_UPLOAD=${WORKDIR}/${USERID}_UPLOAD
-	FILELIST_DELETE=${WORKDIR}/${USERID}-DELETE
+	FILELIST_UPLOAD=${WORKDIR}/"${USERID}"_UPLOAD
+	FILELIST_DELETE=${WORKDIR}/"${USERID}"-DELETE
 	grep "${c_uploadlist}" "${CONFIG}" | cut -d'=' -f 2 -s  | tr ',' '\n' | while read PTH; do
 		if [ "${PTH}" = "" ] ; then
 			continue	
@@ -93,139 +154,39 @@ read_config_init(){
 }
 
 #---  FUNCTION  ----------------------------------------------------------------
-#          NAME:  process_options
-#   DESCRIPTION:  Process the command line options
-#    PARAMETERS:  Cmd Line Arg COunt, Cmd Line Args
-#       RETURNS:  na
-#-------------------------------------------------------------------------------
-process_options(){
-	if [ $# -lt 2 ] ; then
-		show_help 1
-		clean_up_exit 1
-	fi
-	ARGS=`getopt  -o udg:l:v:p:shG:LP -- $@`
-	if [ $? != 0 ]
-	then
-		show_help 1
-		clean_up_exit 1
-	fi
-	eval set -- "${ARGS}"
-	while [ $1 != -- ]
-	do
-		case $1 in 
-			-u)	u_FLG=1 #Upload
-				shift;;
-			-d)	d_FLG=1 #Delete
-				shift;;
-			-g)	g_FLG=1 #Get/Download with file/folder
-				g_ARG=$2
-				shift
-				shift;;
-			-l)	l_FLG=1 #List file/folder
-				l_ARG=$2
-				shift
-				shift;;
-			-v)	v_FLG=1 #Version info for file/folder
-				v_ARG=$2
-				shift
-				shift;;
-			-p)	p_FLG=1 #File properties for file/folder
-				p_ARG=$2
-				shift
-				shift;;
-			-s)	s_FLG=1 #Space Usage
-				shift;;
-			-h)	show_help 2 #Help
-				clean_up_exit 0;; #If help is a option then just display help and exit
-			-G)	G_FLG=1 #Download location for files/folders,should be used only with 'g' option.
-				G_ARG=$2
-				shift
-				shift;;
-			-L)	L_FLG=1 #List parent, similar to 'l' but no args
-				shift;;
-			-P)	P_FLG=1 #Property info for parent, similar to 'p' but no args
-				shift;;
-		esac
-	done
-	#If a non-option argument is given then assign it as the user ID
-	if [ ! "$3" = "" ] ; then 
-		USERID_CMDLINE=$3
-	fi
-}
-
-#---  FUNCTION  ----------------------------------------------------------------
-#          NAME:  get_password
-#   DESCRIPTION:  Get the user password
-#    PARAMETERS:  na
-#       RETURNS:  na
-#-------------------------------------------------------------------------------
-get_password(){
-	read -s -p "--Enter password for ${USERID}:" PWD
-	echo
-}
-
-#---  FUNCTION  ----------------------------------------------------------------
-#          NAME:  get_server
-#   DESCRIPTION:  Get the IDrive server details where backup is done
-#    PARAMETERS:  na
-#       RETURNS:  na
-#-------------------------------------------------------------------------------
-get_server(){
-	echo "INFO: Retrieving server details..."
-	RETVAL=$(idevsutil --getServerAddress ${USERID} --password-file=${PWD})
-	SERVER=$(echo ${RETVAL} | awk -F'["]' '/SUCCESS/{v1=$4}/ERROR/{v1=$2} {printf v1}')
-	#If return contains error then exit
-	if [ ${SERVER} = "ERROR" ]
-	then
-		echo "ERROR: Cannot get server details, exiting."
-		echo ${RETVAL}
-		clean_up_exit 1
-	fi
-	echo "INFO: Server recevied as ${SERVER}"
-}
-
-#---  FUNCTION  ----------------------------------------------------------------
 #          NAME:  call_commands
 #   DESCRIPTION:  This function will call the required functions based on user options from command line
 #    PARAMETERS:  na
 #       RETURNS:  na
 #-------------------------------------------------------------------------------
 call_commands(){
-	if [ ${u_FLG:-0} -eq 1 ] ; then
+	if [ ${u_FLG:-0} -eq 1 ] ; then #Upload option
 		upload
 	fi
-	if [ ${d_FLG:-0} -eq 1 ] ; then
+	if [ ${d_FLG:-0} -eq 1 ] ; then #Delete option
 		delete
 	fi
 	#-g can be run without -G. But -G needs -g to be specified, hence else if used.
-	if [ ${g_FLG:-0} -eq 1 ] ; then
+	if [ ${g_FLG:-0} -eq 1 ] ; then #Download based on specified path, download to location depends on -G
 		download
-	elif [ ${G_FLG:-0} -eq 1 ] ; then
+	elif [ ${G_FLG:-0} -eq 1 ] ; then #Download location, will be used only if -g is passed
 		echo "ERROR: No source files/folders provided with -g. Nothing will be downloaded."
 	fi
-	if [ ${l_FLG:-0} -eq 1 ] ; then
-		echo "List with Arg"
-		echo "Arg: ${l_ARG}"
-	fi
-	if [ ${L_FLG:-0} -eq 1 ] ; then
-		echo "List No Arg"
+	if [ ${l_FLG:-0} -eq 1 ] || [ ${L_FLG:-0} -eq 1 ] ; then #For -l, search or list based on user input, 
+		list_or_search                             #for -L list the contents from the root folder in IDRIVE
 	fi
 	if [ ${v_FLG:-0} -eq 1 ] ; then
-		echo "Version with Arg"
-		echo "Arg: ${v_ARG}"
+		versioning_details
 	fi
 	if [ ${p_FLG:-0} -eq 1 ] ; then
-		echo "Properties with Arg"
-		echo "Arg: ${p_ARG}"
+		file_properties
 	fi
-	if [ ${P_FLG:-0} -eq 1 ] ; then
-		echo "Properties No Arg"
-	fi	
 	if [ ${s_FLG:-0} -eq 1 ] ; then
 		space_usage
 	fi
 }
 
+##COMMAND FUNCTIONS##
 #---  FUNCTION  ----------------------------------------------------------------
 #          NAME:  upload
 #   DESCRIPTION:  Upload files/folders to IDrive based on config file
@@ -243,13 +204,14 @@ upload(){
 	echo "INFO: File/folder list for upload is as below..."
 	cat "${FILELIST_UPLOAD}"
 	echo "INFO: Starting backup..."
-	idevsutil --xml-output --password-file="${PWD}" --files-from="${FILELIST_UPLOAD}" / ${USERID}@${SERVER}::home"${DESTFOLDER}"
+	idevsutil --xml-output --password-file="${PASSWD}" --files-from="${FILELIST_UPLOAD}" / "${USERID}"@"${SERVER}"::home"${DESTFOLDER}"
 	echo "INFO: Upload is complete, check log for any errors."
 }
 
 #---  FUNCTION  ----------------------------------------------------------------
 #          NAME:  backup_ACL
-#   DESCRIPTION:  Backup the ACLs for the files and folders included in this run. Save filename with timestamp to make it unique for each run.
+#   DESCRIPTION:  Backup the ACLs for the files and folders included in this run. 
+#                 Save filename with timestamp to make it unique for each run.
 #    PARAMETERS:  
 #       RETURNS:  
 #-------------------------------------------------------------------------------
@@ -291,7 +253,7 @@ delete(){
 	echo "INFO: File/folder list for deletion is as below..."
 	cat "${FILELIST_DELETE}"
 	echo "INFO: Starting file deletion..."
-	idevsutil --xml-output --password-file=${PWD} --delete-items --files-from=${FILELIST_DELETE} ${USERID}@${SERVER}::home${DESTFOLDER}
+	idevsutil --xml-output --password-file="${PASSWD}" --delete-items --files-from=${FILELIST_DELETE} "${USERID}"@"${SERVER}"::home${DESTFOLDER}
 	echo "INFO: File deletion is complete, check log for any errors."
 }
 
@@ -322,8 +284,9 @@ download(){
 	echo "INFO: Download list is..."
 	cat ${filelist_download}
 	echo "INFO: Starting download..."
-	idevsutil --xml-output --password-file=${PWD} --files-from="${filelist_download}" ${USERID}@${SERVER}::home/ "${download_location}" 
-	echo "INFO: Download complete. Check logs for errors. If ACLs were backed up, file permissions/owner/group can be restored using the setfacl command."
+	idevsutil --xml-output --password-file="${PASSWD}" --files-from="${filelist_download}" "${USERID}"@"${SERVER}"::home/ "${download_location}" 
+	echo "INFO: Download complete. Check logs for errors."
+	echo "INFO: If ACLs were backed up, file permissions/owner/group can be restored using the setfacl command."
 }
 
 
@@ -335,28 +298,120 @@ download(){
 #-------------------------------------------------------------------------------
 space_usage(){
 	echo "INFO: Requesting for space usage..." 
-	RETVAL=$(idevsutil --xml-output --password-file=${PWD} --get-quota ${USERID}@${SERVER}::home/)
+	RETVAL=$(idevsutil --xml-output --password-file="${PASSWD}" --get-quota "${USERID}"@"${SERVER}"::home/)
+	echo ${RETVAL}
 	echo "${RETVAL}" | grep "SUCCESS" 2>&1 >/dev/null
 	if [ $? -eq 1 ] ; then
 		echo "ERROR: Cannot retrieve space usage."
-		echo "${RETVAL}"
 		return
 	fi
-	read tq uq flc <<< $(echo "${RETVAL}" | tr -d '\n' | awk -F'"' '/totalquota/{v1=$4}/usedquota/{v2=$6}/filecount/{v3=$8} {printf v1" " v2" "v3}') 
-	echo "TOTAL SPACE:" `expr ${tq} / 1073741824` "GB"
-	echo "USED SPACE:" `expr ${uq} / 1073741824` "GB"
-	echo "TOTAL FILE: ${flc}"
+	read tq uq <<< $(echo "${RETVAL}" | tr -d '\n' | awk -F'"' '/totalquota/{v1=$4}/usedquota/{v2=$6}/ERROR/{v1="ERROR"} {printf v1" "v2}') 
+	if [ "${tq:-0}" = "ERROR" ] ; then
+		return
+	fi
+	echo "INFO INTERPRETER-"
+	data_size_interpreter "${tq}"
+	echo "TOTAL SPACE: ${INTERPRETED_SIZE}"
+	data_size_interpreter "${uq}"
+	echo "USED SPACE: ${INTERPRETED_SIZE}"
 }
 
 #---  FUNCTION  ----------------------------------------------------------------
-#          NAME:  clean_up_exit
-#   DESCRIPTION:  Perform any needed cleanup and exit
-#    PARAMETERS:  Exit status to be returned
-#       RETURNS:  Exit status to shell
+#          NAME:  list_or_search
+#   DESCRIPTION:  Search for or list files/folders
+#    PARAMETERS:  na
+#       RETURNS:  na
 #-------------------------------------------------------------------------------
-clean_up_exit(){
-	rm -fr ${WORKDIR}
-	exit $1
+list_or_search(){
+	if [ "${l_FLG:-0}" -eq 1 ]  ; then
+		searchterm="${l_ARG}"			
+	elif [ "${L_FLG:-0}" -eq 1 ] ; then
+		searchterm="/"
+	fi
+	echo "INFO: Searching or listing for - '${searchterm}'..."
+	idevsutil --xml-output --password-file="${PASSWD}" --search "${USERID}"@"${SERVER}"::home/"${searchterm}"
+}
+
+#---  FUNCTION  ----------------------------------------------------------------
+#          NAME:  versioning_details
+#   DESCRIPTION:  Get versioning info for the provided file/folder name
+#    PARAMETERS:  na
+#       RETURNS:  na
+#-------------------------------------------------------------------------------
+versioning_details(){
+	echo "INFO: Getting versioning details for - '${v_ARG}'..."
+	idevsutil --xml-output --password-file="${PASSWD}" --version-info "${USERID}"@"${SERVER}"::home/"${v_ARG}"
+}
+
+#---  FUNCTION  ----------------------------------------------------------------
+#          NAME:  file_properties
+#   DESCRIPTION:  Get the file or folder properties for path given by user
+#    PARAMETERS:  na
+#       RETURNS:  ba
+#-------------------------------------------------------------------------------
+file_properties(){
+	echo "INFO: Getting properties for - '${p_ARG}'..."                                                                                                                                                                         
+	RETVAL=$(idevsutil --xml-output --password-file="${PASSWD}" --properties "${USERID}"@"${SERVER}"::home/"${p_ARG}")
+	echo ${RETVAL}
+	fsz=0
+	read fsz <<< $(echo "${RETVAL}" | awk -F'["| ]' '/size/{v1=$3}/ERROR/{v1="ERROR"} {printf v1}')
+	if [ "${fsz:-0}" = "ERROR" ] ; then
+		return
+	fi
+	echo "INFO INTERPRETER-"
+	data_size_interpreter "${fsz}"
+	echo "FILE/FOLDER SIZE: ${INTERPRETED_SIZE}"
+}
+
+##HELPER FUNCTIONS##
+#---  FUNCTION  ----------------------------------------------------------------
+#          NAME:  get_password
+#   DESCRIPTION:  Get the user password
+#    PARAMETERS:  na
+#       RETURNS:  na
+#-------------------------------------------------------------------------------
+get_password(){
+	read -s -p "--Enter password for ${USERID}:" PASSWD
+	echo
+}
+
+#---  FUNCTION  ----------------------------------------------------------------
+#          NAME:  get_server
+#   DESCRIPTION:  Get the IDrive server details where backup is done
+#    PARAMETERS:  na
+#       RETURNS:  na
+#-------------------------------------------------------------------------------
+get_server(){
+	echo "INFO: Retrieving server details..."
+	RETVAL=$(idevsutil --getServerAddress "${USERID}" --password-file="${PASSWD}")
+	SERVER=$(echo ${RETVAL} | awk -F'["]' '/SUCCESS/{v1=$4}/ERROR/{v1=$2} {printf v1}')
+	#If return contains error then exit
+	if [ "${SERVER}" = "ERROR" ]
+	then
+		echo "ERROR: Cannot get server details, exiting."
+		echo ${RETVAL}
+		clean_up_exit 1
+	fi
+	echo "INFO: Server recevied as ${SERVER}"
+}
+
+#---  FUNCTION  ----------------------------------------------------------------
+#          NAME:  data_size_interpreter
+#   DESCRIPTION:  Get a number in bytes and then based on how big is the file return the appropriate size in B,KB,MB,GB
+#    PARAMETERS:  number, size of file in bytes
+#       RETURNS:  string, size with units
+#-------------------------------------------------------------------------------
+data_size_interpreter(){
+	INTERPRETED_SIZE=""
+	if [ $1 -lt 1024 ] ; then
+		INTERPRETED_SIZE=$1" B"
+	elif [ $1 -lt 1048576 ] ; then
+		INTERPRETED_SIZE=`expr $1 / 1024`" KB"
+	elif [ $1 -lt 1073741824 ] ; then 
+		INTERPRETED_SIZE=`expr $1 / 1048576`" MB"
+	else
+		INTERPRETED_SIZE=`expr $1 / 1073741824`" GB"
+	fi
 }
 
 #---  FUNCTION  ----------------------------------------------------------------
@@ -376,14 +431,25 @@ show_help(){
 	fi
 }
 
-#Start Here--
+#---  FUNCTION  ----------------------------------------------------------------
+#          NAME:  clean_up_exit
+#   DESCRIPTION:  Perform any needed cleanup and exit
+#    PARAMETERS:  Exit status to be returned
+#       RETURNS:  Exit status to shell
+#-------------------------------------------------------------------------------
+clean_up_exit(){
+	rm -fr ${WORKDIR}
+	exit $1
+}
+
+##START HERE##
 #Process the command line options
 process_options $# $@
-#Read the config file and assign params and populate file lists
 echo "IDrive backup wrapper script started."
+#Read the config file and assign params and populate file lists
 read_config_init
 get_password
 get_server
 call_commands
 clean_up_exit 0
-
+##END##
