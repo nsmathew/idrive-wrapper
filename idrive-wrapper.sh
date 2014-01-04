@@ -42,6 +42,7 @@ init_script(){
 	CONFIG=~/.config/.idrivewrc #Config file
 	WORKDIR=`mktemp -d` #Temp working directory
 	HELPFILE=/home/nsm09/workspace/idrive-wrapper/idrive-wrapper_manual.txt
+	IDRIVEWRAPPER_VER="idrive-wrapper v0.2b"
 
 	#Check for required external commands
 	type more &>/dev/null
@@ -51,6 +52,10 @@ init_script(){
 	type getfacl &>/dev/null
 	if [ $? -eq 0 ] ; then
 		C_getfacl_AVAILABLE=1
+	fi
+	type bc &>/dev/null
+	if [ $? -eq 0 ] ; then
+		C_bc_AVAILABLE=1
 	fi
 }
 
@@ -65,7 +70,7 @@ process_options(){
 		show_help 1
 		clean_up_exit 1
 	fi
-	ARGS=`getopt  -o udg:l:v:p:shG:L -- $@`
+	ARGS=`getopt  -o udg:l:V:p:shG:LU:D:vP: -- $@`
 	if [ $? != 0 ]
 	then
 		show_help 1
@@ -87,8 +92,8 @@ process_options(){
 				l_ARG=$2
 				shift
 				shift;;
-			-v)	v_FLG=1 #Version info for file/folder
-				v_ARG=$2
+			-V)	V_FLG=1 #Version info for file/folder
+				V_ARG=$2
 				shift
 				shift;;
 			-p)	p_FLG=1 #File properties for file/folder
@@ -103,7 +108,21 @@ process_options(){
 				G_ARG=$2
 				shift
 				shift;;
-			-L)	L_FLG=1 #List parent, similar to 'l' but no args
+			-L)	L_FLG=1 #List IDrive Home Folder, similar to 'l' but no args
+				shift;;
+			-v)	show_version #Display version
+				clean_up_exit 0;; # Dont do anything further
+			-U)	U_FLG=1 #Upload using command line files/folders
+				U_ARG=$2
+				shift
+				shift;;
+			-D)	D_FLG=1 #Delete based on command line files/folders
+				D_ARG=$2
+				shift
+				shift;;
+			-P)	P_FLG=1 #IDrive Parent folder
+				P_ARG=$2
+				shift
 				shift;;
 		esac
 	done
@@ -148,14 +167,21 @@ read_config(){
 	fi
 	echo "INFO: User ID is '${USERID}'"
 	#IDRIVEFOLDER
-	DESTFOLDER=`grep "${c_idrivehome}" "${CONFIG}" | cut -d'=' -f 2 -s`
-	if [  "${DESTFOLDER}" = "" ] ;  then
-		DESTFOLDER="/"
+	#If -P option is given then use the command line parent folder else check available in the config file. 
+	#If not in config file then use IDrive root
+	if [ "${P_FLG:-0}" -eq 1 ] ; then
+		DESTFOLDER="${P_ARG}"
+	else
+		DESTFOLDER=`grep "${c_idrivehome}" "${CONFIG}" | cut -d'=' -f 2 -s`
+		if [  "${DESTFOLDER}" = "" ] ;  then
+			DESTFOLDER="/"
+		fi
 	fi
-	echo "INFO: Parent folder in IDrive is '${DESTFOLDER}'"
+	echo "INFO: Parent folder in IDrive for upload is '${DESTFOLDER}'"
 	#UPLOAD/DELETE FILEISTS
 	FILELIST_UPLOAD=${WORKDIR}/"${USERID}"_UPLOAD
 	FILELIST_DELETE=${WORKDIR}/"${USERID}"-DELETE
+	PTH=""
 	grep "${c_uploadlist}" "${CONFIG}" | cut -d'=' -f 2 -s  | tr ',' '\n' | while read PTH; do
 		if [ "${PTH}" = "" ] ; then
 			continue	
@@ -169,7 +195,6 @@ read_config(){
 		fi
 		echo "${PTH}" >> ${FILELIST_DELETE}
 	done
-	PTH=""
 	#ACL BACKUP PATH
 	ACL_BACKUP=`grep "${c_aclbackup}"  "${CONFIG}" | cut -d'=' -f 2 -s`
 }
@@ -184,7 +209,13 @@ call_commands(){
 	if [ ${u_FLG:-0} -eq 1 ] ; then #Upload option
 		upload
 	fi
+	if [ ${U_FLG:-0} -eq 1 ] ; then #upload using paths from command line
+		upload
+	fi
 	if [ ${d_FLG:-0} -eq 1 ] ; then #Delete option
+		delete
+	fi
+	if [ ${D_FLG:-0} -eq 1 ] ; then #Delete using paths from command line
 		delete
 	fi
 	#-g can be run without -G. But -G needs -g to be specified, hence else if used.
@@ -196,7 +227,7 @@ call_commands(){
 	if [ ${l_FLG:-0} -eq 1 ] || [ ${L_FLG:-0} -eq 1 ] ; then #For -l, search or list based on user input, 
 		list_or_search                             #for -L list the contents from the root folder in IDRIVE
 	fi
-	if [ ${v_FLG:-0} -eq 1 ] ; then
+	if [ ${V_FLG:-0} -eq 1 ] ; then
 		versioning_details
 	fi
 	if [ ${p_FLG:-0} -eq 1 ] ; then
@@ -215,53 +246,33 @@ call_commands(){
 #       RETURNS:  na
 #-------------------------------------------------------------------------------
 upload(){
-	#Perform ACL backup if requested first and then upload
-	backup_ACL
-
-	if [ ! -s "${FILELIST_UPLOAD}" ] ; then
-		echo "No file/folder list available. Nothing will be uploaded."
-		return
-	fi
-	echo "INFO: File/folder list for upload is as below..."
-	cat "${FILELIST_UPLOAD}"
-	echo "INFO: Starting backup..."
-	idevsutil --xml-output --password-file="${PASSWD}" --files-from="${FILELIST_UPLOAD}" / "${USERID}"@"${SERVER}"::home/"${DESTFOLDER}"
-	echo "INFO: Upload is complete, check log for any errors."
-}
-
-#---  FUNCTION  ----------------------------------------------------------------
-#          NAME:  backup_ACL
-#   DESCRIPTION:  Backup the ACLs for the files and folders included in this run. 
-#                 Save filename with timestamp to make it unique for each run.
-#    PARAMETERS:  
-#       RETURNS:  
-#-------------------------------------------------------------------------------
-backup_ACL(){
-	if [ "${ACL_BACKUP}" = "" ] ; then
-		echo "INFO: ACL Backup not requested in config file."
-		return
-	fi
-	if [ ! -d "${ACL_BACKUP}" ] ; then
-		echo "ERROR: ACL Backup folder ${ACL_BACKUP} is not valid/does not exist. ACL backup will not be performed."
-		return
-	fi
-	if [ ${C_getfacl_AVAILABLE:-0} -ne 1 ] ; then
-		echo "ERROR: 'getfacl' command is not available. ACL backup will not be performed"
-		return
-	fi
-	filename="${ACL_BACKUP%/}"/idrive-acls-${TIMESTMP}.txt
-	grep "${c_uploadlist}" "${CONFIG}" | cut -d'=' -f 2 -s | tr ',' '\n' | while read PTH; do
-		if [ "${PTH}" = "" ] ; then
-			continue	
+	if [ ${u_FLG:-0} -eq 1 ] ; then
+		if [ ! -s "${FILELIST_UPLOAD}" ] ; then
+			echo "No file/folder list available. Nothing will be uploaded."
+			return
 		fi
-		getfacl -R "${PTH}" >> ${filename}
-	done
-	PTH=""
-	if [ $? != 0 ] ; then
-		echo "ERROR: ACL backup might not have completed. Please check logs and verify in backup location."
-	else
-		echo "INFO: ACL Backup completed in ${filename}"
+		upload_file="${FILELIST_UPLOAD}"
+		u_FLG=""
+	elif [ ${U_FLG:-0} -eq 1 ] ; then
+		upload_file=${WORKDIR}/"${USERID}"_UPLOAD_CMDLINE
+		PTH=""
+		echo "${U_ARG}" | tr ',' '\n' | while read PTH; do
+			if [ "${PTH}" = "" ] ; then
+				continue	
+			fi
+			echo "${PTH}" >> "${upload_file}"
+		done
+		U_FLG=""
 	fi
+	
+	#Perform ACL backup if requested first and then upload
+	backup_ACL "${upload_file}"
+
+	echo "INFO: File/folder list for upload is as below..."
+	cat "${upload_file}"
+	echo "INFO: Starting backup..."
+	idevsutil --xml-output --password-file="${PASSWD}" --files-from="${upload_file}" / "${USERID}"@"${SERVER}"::home/"${DESTFOLDER}"
+	echo "INFO: Upload is complete, check log for any errors."
 }
 
 #---  FUNCTION  ----------------------------------------------------------------
@@ -271,14 +282,28 @@ backup_ACL(){
 #       RETURNS:  na
 #-------------------------------------------------------------------------------
 delete(){
-	if [ ! -s "${FILELIST_DELETE}" ] ; then
-		echo "No file/folder list available. Nothing will be deleted."
-		return
+	if [ ${d_FLG:-0} -eq 1 ] ; then
+		if [ ! -s "${FILELIST_DELETE}" ] ; then
+			echo "No file/folder list available. Nothing will be deleted."
+			return
+		fi
+		delete_file="${FILELIST_DELETE}"
+		d_FLG=""
+	elif [ ${D_FLG:-0} -eq 1 ] ; then
+		delete_file=${WORKDIR}/"${USERID}"_DELETE_CMDLINE
+		PTH=""
+		echo "${D_ARG}" | tr ',' '\n' | while read PTH; do
+			if [ "${PTH}" = "" ] ; then
+				continue	
+			fi
+			echo "${PTH}" >> "${delete_file}"
+		done
+		D_FLG=""
 	fi
 	echo "INFO: File/folder list for deletion is as below..."
-	cat "${FILELIST_DELETE}"
+	cat "${delete_file}"
 	echo "INFO: Starting file deletion..."
-	idevsutil --xml-output --password-file="${PASSWD}" --delete-items --files-from=${FILELIST_DELETE} "${USERID}"@"${SERVER}"::home/${DESTFOLDER}
+	idevsutil --xml-output --password-file="${PASSWD}" --delete-items --files-from="${delete_file}" "${USERID}"@"${SERVER}"::home/
 	echo "INFO: File deletion is complete, check log for any errors."
 }
 
@@ -291,6 +316,7 @@ delete(){
 download(){
 	filelist_download="${WORKDIR}"/"${USERID}"_DOWNLOAD
 	#Create a temp file with the paths provided in command line
+	PTH=""
 	echo "${g_ARG}" | tr ',' '\n' | while read PTH; do
 		if [ "${PTH}" = "" ] ; then
 			continue	
@@ -351,7 +377,7 @@ list_or_search(){
 	if [ "${l_FLG:-0}" -eq 1 ]  ; then
 		searchterm="${l_ARG}"			
 	elif [ "${L_FLG:-0}" -eq 1 ] ; then
-		searchterm="/"
+		searchterm="${DESTFOLDER}"
 	fi
 	echo "INFO: Searching or listing for - '${searchterm}'..."
 	idevsutil --xml-output --password-file="${PASSWD}" --search "${USERID}"@"${SERVER}"::home/"${searchterm}"
@@ -364,8 +390,8 @@ list_or_search(){
 #       RETURNS:  na
 #-------------------------------------------------------------------------------
 versioning_details(){
-	echo "INFO: Getting versioning details for - '${v_ARG}'..."
-	idevsutil --xml-output --password-file="${PASSWD}" --version-info "${USERID}"@"${SERVER}"::home/"${v_ARG}"
+	echo "INFO: Getting versioning details for - '${V_ARG}'..."
+	idevsutil --xml-output --password-file="${PASSWD}" --version-info "${USERID}"@"${SERVER}"::home/"${V_ARG}"
 }
 
 #---  FUNCTION  ----------------------------------------------------------------
@@ -386,6 +412,37 @@ file_properties(){
 	echo "INFO INTERPRETER-"
 	data_size_interpreter "${fsz}"
 	echo "FILE/FOLDER SIZE: ${INTERPRETED_SIZE}"
+}
+
+#---  FUNCTION  ----------------------------------------------------------------
+#          NAME:  show_help
+#   DESCRIPTION:  Show the help function onto STDOUT
+#    PARAMETERS:  1-Brief help for options, 2-Detailed help by reading from help file
+#       RETURNS:  na
+#-------------------------------------------------------------------------------
+show_help(){
+	if [ $1 -eq 1 ] ; then
+		echo "idrive-wrapper usage as below:"
+		#Extract the brief usage summary from help file
+		sed -n '/Usage Summary:START/,/Usage Summary:END/p' "${HELPFILE}" | head -n -1 | tail -n +2
+	elif [ $1 -eq 2 ] ; then
+		if [ ${C_more_AVAILABLE} -eq 1 ] ; then
+			cat "${HELPFILE}" | more
+		else
+			cat "${HELPFILE}"
+		fi
+	fi
+}
+
+#---  FUNCTION  ----------------------------------------------------------------
+#          NAME:  show_version
+#   DESCRIPTION:  Show the current program version
+#    PARAMETERS:  na
+#       RETURNS:  na
+#-------------------------------------------------------------------------------
+show_version(){
+	echo "${IDRIVEWRAPPER_VER}"
+	echo $(idevsutil --client-version | head -n 1)
 }
 
 ##HELPER FUNCTIONS##
@@ -421,6 +478,43 @@ get_server(){
 }
 
 #---  FUNCTION  ----------------------------------------------------------------
+#          NAME:  backup_ACL
+#   DESCRIPTION:  Backup the ACLs for the files and folders included in this run. 
+#                 Save filename with timestamp to make it unique for each run.
+#    PARAMETERS:  
+#       RETURNS:  
+#-------------------------------------------------------------------------------
+backup_ACL(){
+	echo $1
+	if [ "${ACL_BACKUP}" = "" ] ; then
+		echo "INFO: ACL Backup not requested in config file."
+		return
+	fi
+	if [ ! -d "${ACL_BACKUP}" ] ; then
+		echo "ERROR: ACL Backup folder ${ACL_BACKUP} is not valid/does not exist. ACL backup will not be performed."
+		return
+	fi
+	if [ ${C_getfacl_AVAILABLE:-0} -ne 1 ] ; then
+		echo "ERROR: 'getfacl' command is not available. ACL backup will not be performed"
+		return
+	fi
+	filename="${ACL_BACKUP%/}"/idrive-acls-${TIMESTMP}.txt
+	PTH=""
+	cat $1 | while read PTH; do
+	
+		if [ "${PTH}" = "" ] ; then
+			continue	
+		fi
+		getfacl -R "${PTH}" >> "${filename}"
+	done
+	if [ $? != 0 ] ; then
+		echo "ERROR: ACL backup might not have completed. Please check logs and verify in backup location."
+	else
+		echo "INFO: ACL Backup completed in ${filename}"
+	fi
+}
+
+#---  FUNCTION  ----------------------------------------------------------------
 #          NAME:  data_size_interpreter
 #   DESCRIPTION:  Get a number in bytes and then based on how big is the file return the appropriate size in B,KB,MB,GB
 #    PARAMETERS:  number, size of file in bytes
@@ -431,30 +525,22 @@ data_size_interpreter(){
 	if [ $1 -lt 1024 ] ; then
 		INTERPRETED_SIZE=$1" B"
 	elif [ $1 -lt 1048576 ] ; then
-		INTERPRETED_SIZE=`expr $1 / 1024`" KB"
+		if [ ${C_bc_AVAILABLE:-0} -eq 1 ] ; then
+			INTERPRETED_SIZE=`echo "scale=2;$1/1024" | bc`" KB"
+		else 
+			INTERPRETED_SIZE=`expr $1 / 1024`" KB"
+		fi
 	elif [ $1 -lt 1073741824 ] ; then 
-		INTERPRETED_SIZE=`expr $1 / 1048576`" MB"
-	else
-		INTERPRETED_SIZE=`expr $1 / 1073741824`" GB"
-	fi
-}
-
-#---  FUNCTION  ----------------------------------------------------------------
-#          NAME:  show_help
-#   DESCRIPTION:  Show the help function onto STDOUT
-#    PARAMETERS:  1-Brief help for options, 2-Detailed help by reading from help file
-#       RETURNS:  na
-#-------------------------------------------------------------------------------
-show_help(){
-	if [ $1 -eq 1 ] ; then
-		echo "idrive-wrapper usage as below:"
-		#Extract the brief usage summary from help file
-		sed -n '/Usage Summary:START/,/Usage Summary:END/p' "${HELPFILE}" | head -n -1 | tail -n +2
-	elif [ $1 -eq 2 ] ; then
-		if [ ${C_more_AVAILABLE} -eq 1 ] ; then
-			cat "${HELPFILE}" | more
+		if [ ${C_bc_AVAILABLE:-0} -eq 1 ] ; then
+			INTERPRETED_SIZE=`echo "scale=2;$1/1048576" | bc`" MB"
 		else
-			cat "${HELPFILE}"
+			INTERPRETED_SIZE=`expr $1 / 1048576`" MB"
+		fi
+	else
+		if [ ${C_bc_AVAILABLE:-0} -eq 1 ] ; then
+			INTERPRETED_SIZE=`echo "scale=2;$1/1073741824" | bc`" GB"
+		else
+			INTERPRETED_SIZE=`expr $1 / 1073741824`" GB"
 		fi
 	fi
 }
