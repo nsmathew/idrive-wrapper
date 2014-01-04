@@ -1,0 +1,109 @@
+idrive-wrapper
+--------------
+
+(Usage Summary:START)
+idrive-wrapper [OPTIONS [ARGUMENTS]] [IDRIVE_USERID] 
+-u 	- Upload files/folder given in config file 
+-d 	- Delete file/folder given in config file 
+-g ARG  - Download files given as ARG(csv) to /tmp/idrive-downloads/ 
+-G ARG  - Download files from -g option to ARG 
+-l ARG 	- List or search for ARG in IDrive 
+-v ARG  - Show versioning info for ARG 
+-p ARG	- Show file/folder properties for ARG 
+-s	- Show space usage in IDrive 
+-h 	- Show detailed help 
+Config file is at ~/.config/.idrivewrc 
+(Usage Summary:END)
+
+(Detailed Usage:)
+NAME 
+---- 
+idrive-wrapper - Runs the idevsutil commands for uploading, deleting, downloading and other actions using command line options. idevsutil is an official command line utility provided by IDrive(c).
+
+USAGE 
+----- 
+idrive-wrapper [OPTIONS [ARGUMENTS]] [IDRIVE_USERID]
+
+[OPTIONS [ARGUMENTS]] 
+-u
+Upload to IDrive. The list of files and folders are taken from UPLOAD_LIST key value from the config file. If no file/folders are given then program will not do any uploads. A parent directory can be provided in
+IDRIVE_HOME_FOLDER key value in config file and the uploads will happen relative to this directory in IDrive. If a valid path is provided in ACL_BACKUP then program will backup the ACL information for the files/folders
+included in current upload run. For more information on ACL_BACKUP refer to the config section.
+
+-d
+Delete from IDrive. The list of files and folders are taken from DELETE_LIST key value from the config file. If no file/folders are given then program will not do any deletion. A parent directory can be provided in
+IDRIVE_HOME_FOLDER key value in config file and the deletions will happen relative to this directory in IDrive.
+ 
+-g ARG
+Get/download files/folders from IDrive. Requires a mandatory argument containing valid comma separated paths in IDrive.  The files and folders mentioned will be downloaded. To specifiy a download location use -G option.
+If no -G option is used then the files will be downloaded to /tmp/idrive-downloads/. IDrive does not store the file metadat info like permissions/owner/group. The ACL_BACKUP config option can be used while uploading and
+same can be used to restore this metadata. For more information on ACL_BACKUP refer to the config section.
+
+-G ARG
+Download location. Is valid only if used with -g and requires a mandatory argument. Should specify one valid directory path to which the files/folders mentioned in -g option will be downloaded to.
+
+-l ARG
+List or search for files and folders in IDrive. Requires a mandatory argument. If the path provided exists in IDrive the contents of the folder will be listed or if a file then the file info will be listed. If not then
+info for all matching instances of given search term will be listed.
+
+-v ARG
+Versioning info for a file. Requires a mandatory argument. If the provided path is a valid for a file in IDrive and there are mutliple versions of the file stored then this information will be displayed.
+
+-p ARG
+File/Folder properties. Requires a mandatory argument. If the provided path if valid for a file or folder in IDrive then the file/folder property infor will be shown.
+
+-s
+Show the space usage in IDrive root. Shows total and used space. For individual file/folder size use the -p option.
+
+-h
+Displays this help file.
+
+[IDRIVE_USERID]
+The user ID to login to IDrive can be provided in the command line. This will override what is given in the config file for UNAME key value. If run only with USERID and without any above options the program will display
+server used for backup and exit.
+
+CONFIG FILE 
+----------- 
+The config file should be available at ~/.config/.idriverc. This a key value pair file. An empty file with the available keys is present in /usr/share/doc/idrive-wrapper/. 
+This file can contain the below keys:
+
+UNAME
+The user ID registered with IDrive. Single value. If provided in command line then that value takes precedence. If not provided at either place then program will exit.
+
+UPLOAD_LIST
+A comma separated list of file and folder paths to be uploaded to IDrive. Absolute paths are preferred. If not given then the upload operation will not proceed. Upload into IDrive will be done relative to parent folder
+given IDRIVE_HOME_FOLDER key.
+
+DELETE_LIST
+A comma separated list of file and folder paths to be delete from IDrive. Paths should be corresponding to IDrive and will be relative to the home given with the IDRIVE_HOME_FOLDER key. If not given then the delete
+operation will not proceed.
+
+IDRIVE_HOME_FOLDER
+This will be the parent folder to which the data for upload will be uploaded. For delete option the paths mentioned in DELETE_LIST will be relative to this folder in IDrive.
+
+ACL_BACKUP
+Path to which the ACL info for the current list of files/folders being uploaded should be saved. This should be a valid path(program will not create it). If not valid or not provided then no ACL backup will be taken. A
+new file is created for every upload run and has the timestamp in the filename. IDrive does not save file metadata like permissions/owner/group. So as part of restore, after downloading required data from IDrive this ACL
+backup file can be used to restore the metadata. The path in the backupfile will have to be changed to reflect the download location. It is recommended to include this ACL backup directory in your list of folders to be
+backed up.  getfacl is used to backup the ACLs and setfacl can be used to restore them. Refer to 'man setfacl' for more information.
+
+SECURITY INFO
+-------------
+- The password is currently accepted via prompt only. For scheduling solutions, 'expect' can be looked at.
+- There is no option to use the private encryption file as well. Only default encryption mode is currently supported.
+
+OTHER INFO
+----------
+- Program is written in shell scripting.
+- idevsutil is a command line utility provided by IDrive(c) for performing actions on their cloud backup service. More information on the utility and APIs is available at http://evs.idrive.com/getting-started.htm. Legal
+  information is available at http://evs.idrive.com/terms-of-service.htm.
+- Sourcecode for idriver-wrapper is avialble as https://github.com/nsmathew/idrive-wrapper.
+- Written as a shell sript.
+
+CONTRIBUTORS
+------------
+- Nitin Mathew <nitn_mathew2000@hotmail.com>
+ 
+VERSIONS
+--------
+0.1b - Current

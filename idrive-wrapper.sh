@@ -28,6 +28,32 @@
 #===============================================================================
 
 ##MAIN FLOW FUNCTIONS##
+
+#---  FUNCTION  ----------------------------------------------------------------
+#          NAME:  init_script
+#   DESCRIPTION:  Initialize the main variables which are not read from the 
+#		  config file.
+#    PARAMETERS:  
+#       RETURNS:  
+#-------------------------------------------------------------------------------
+init_script(){
+	#initial params
+	TIMESTMP=$(date +"%Y%m%d-%H%M%S-%N") # generate timestamp : YYYYMMDD-hhmmss
+	CONFIG=~/.config/.idrivewrc #Config file
+	WORKDIR=`mktemp -d` #Temp working directory
+	HELPFILE=/home/nsm09/workspace/idrive-wrapper/idrive-wrapper_manual.txt
+
+	#Check for required external commands
+	type more &>/dev/null
+	if [ $? -eq 0 ] ; then
+		C_more_AVAILABLE=1
+	fi
+	type getfacl &>/dev/null
+	if [ $? -eq 0 ] ; then
+		C_getfacl_AVAILABLE=1
+	fi
+}
+
 #---  FUNCTION  ----------------------------------------------------------------
 #          NAME:  process_options
 #   DESCRIPTION:  Process the command line options
@@ -88,23 +114,18 @@ process_options(){
 }
 
 #---  FUNCTION  ----------------------------------------------------------------
-#          NAME:  read_config_init
+#          NAME:  read_config
 #   DESCRIPTION:  Read the config file and initialize the variables
 #    PARAMETERS:  na
 #       RETURNS:  na
 #-------------------------------------------------------------------------------
-read_config_init(){
-	#initial params
-	TIMESTMP=$(date +"%Y%m%d-%H%M%S-%N") # generate timestamp : YYYYMMDD-hhmmss
-	CONFIG=~/.config/.idrivewrc #COnfig file
+read_config(){
 	#Config keys
 	c_username="UNAME"
 	c_uploadlist="UPLOAD_LIST"
 	c_deletelist="DELETE_LIST"
 	c_idrivehome="IDRIVE_HOME_FOLDER"
 	c_aclbackup="ACL_BACKUP"
-	HELPFILE=TODO #Helpfile
-	WORKDIR=`mktemp -d` #Temp working directory
 	
 	#If config file doesn exist then exit
 	if  [ ! -s "${CONFIG}" ]; then
@@ -204,7 +225,7 @@ upload(){
 	echo "INFO: File/folder list for upload is as below..."
 	cat "${FILELIST_UPLOAD}"
 	echo "INFO: Starting backup..."
-	idevsutil --xml-output --password-file="${PASSWD}" --files-from="${FILELIST_UPLOAD}" / "${USERID}"@"${SERVER}"::home"${DESTFOLDER}"
+	idevsutil --xml-output --password-file="${PASSWD}" --files-from="${FILELIST_UPLOAD}" / "${USERID}"@"${SERVER}"::home/"${DESTFOLDER}"
 	echo "INFO: Upload is complete, check log for any errors."
 }
 
@@ -222,6 +243,10 @@ backup_ACL(){
 	fi
 	if [ ! -d "${ACL_BACKUP}" ] ; then
 		echo "ERROR: ACL Backup folder ${ACL_BACKUP} is not valid/does not exist. ACL backup will not be performed."
+		return
+	fi
+	if [ ${C_getfacl_AVAILABLE:-0} -ne 1 ] ; then
+		echo "ERROR: 'getfacl' command is not available. ACL backup will not be performed"
 		return
 	fi
 	filename="${ACL_BACKUP%/}"/idrive-acls-${TIMESTMP}.txt
@@ -253,7 +278,7 @@ delete(){
 	echo "INFO: File/folder list for deletion is as below..."
 	cat "${FILELIST_DELETE}"
 	echo "INFO: Starting file deletion..."
-	idevsutil --xml-output --password-file="${PASSWD}" --delete-items --files-from=${FILELIST_DELETE} "${USERID}"@"${SERVER}"::home${DESTFOLDER}
+	idevsutil --xml-output --password-file="${PASSWD}" --delete-items --files-from=${FILELIST_DELETE} "${USERID}"@"${SERVER}"::home/${DESTFOLDER}
 	echo "INFO: File deletion is complete, check log for any errors."
 }
 
@@ -300,7 +325,7 @@ space_usage(){
 	echo "INFO: Requesting for space usage..." 
 	RETVAL=$(idevsutil --xml-output --password-file="${PASSWD}" --get-quota "${USERID}"@"${SERVER}"::home/)
 	echo ${RETVAL}
-	echo "${RETVAL}" | grep "SUCCESS" 2>&1 >/dev/null
+	echo "${RETVAL}" | grep "SUCCESS" 2>&1>/dev/null
 	if [ $? -eq 1 ] ; then
 		echo "ERROR: Cannot retrieve space usage."
 		return
@@ -421,13 +446,16 @@ data_size_interpreter(){
 #       RETURNS:  na
 #-------------------------------------------------------------------------------
 show_help(){
-	
 	if [ $1 -eq 1 ] ; then
 		echo "idrive-wrapper usage as below:"
-		#TODO Print out brief help here for options
+		#Extract the brief usage summary from help file
+		sed -n '/Usage Summary:START/,/Usage Summary:END/p' "${HELPFILE}" | head -n -1 | tail -n +2
 	elif [ $1 -eq 2 ] ; then
-		echo "Help 2"
-		#TODO cat the help file from ${HELPFILE}
+		if [ ${C_more_AVAILABLE} -eq 1 ] ; then
+			cat "${HELPFILE}" | more
+		else
+			cat "${HELPFILE}"
+		fi
 	fi
 }
 
@@ -443,13 +471,17 @@ clean_up_exit(){
 }
 
 ##START HERE##
+init_script
 #Process the command line options
 process_options $# $@
 echo "IDrive backup wrapper script started."
 #Read the config file and assign params and populate file lists
-read_config_init
+read_config
+#Get the password and server
 get_password
 get_server
+#Call function for required ops
 call_commands
+#Remove any temp directories/files and exit
 clean_up_exit 0
 ##END##
