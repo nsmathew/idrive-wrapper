@@ -41,11 +41,17 @@ init_script(){
 	TIMESTMP=$(date +"%Y%m%d-%H%M%S-%N") # generate timestamp : YYYYMMDD-hhmmss
 	CONFIG=~/.config/.idrivewrc #Config file
 	WORKDIR=`mktemp -d` #Temp working directory
-	IDRIVEWRAPPER_VER="idrive-wrapper v0.3b"
+	IDRIVEWRAPPER_VER="idrive-wrapper v1.0"
 	TIMESTMP_CMD="date +%d-%m-%Y\|%T\|%Z"
-	HELPFILE=/usr/share/doc/idrive-wrapper/idrive-wrapper_manual.txt
-	if [ ! -s "${HELPFILE}" ] ; then
-		HELPFILE="NA"
+	if [ ! -s "/usr/share/doc/idrive-wrapper/idrive-wrapper_manual.txt" ] ; then
+		if [ ! -s "./idrive-wrapper_manual.txt" ] ; then
+			HELPFILE="NA"
+		else
+			HELPFILE="./idrive-wrapper_manual.txt"
+		fi
+	else
+		HELPFILE="/usr/share/doc/idrive-wrapper/idrive-wrapper_manual.txt"
+
 	fi
 
 	#Check for required external commands
@@ -390,7 +396,7 @@ space_usage(){
 	if [ "${tq:-0}" = "ERROR" ] ; then
 		return
 	fi
-	echo "INFO INTERPRETER-`eval ${TIMESTMP_CMD}`:" | tee -a "${LOG_FILE}"
+	echo "INFO INTERPRETER-" | tee -a "${LOG_FILE}"
 	data_size_interpreter "${tq}"
 	echo "TOTAL SPACE: ${INTERPRETED_SIZE}" | tee -a "${LOG_FILE}"
 	data_size_interpreter "${uq}"
@@ -439,7 +445,7 @@ file_properties(){
 	if [ "${fsz:-0}" = "ERROR" ] ; then
 		return
 	fi
-	echo "INFO INTERPRETER-`eval ${TIMESTMP_CMD}`:" | tee -a "${LOG_FILE}"
+	echo "INFO INTERPRETER-" | tee -a "${LOG_FILE}"
 	data_size_interpreter "${fsz}"
 	echo "FILE/FOLDER SIZE: ${INTERPRETED_SIZE}" | tee -a "${LOG_FILE}"
 }

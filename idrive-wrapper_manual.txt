@@ -154,6 +154,11 @@ CONTRIBUTORS
  
 VERSIONS
 --------
-0.3b - Current
+1.0 - Current
 0.2b
 0.1b
+
+COPYRIGHT
+---------
+Copyright for the idrive-wrapper script is with Nitin Mathew, 2013
+Copyright for idevsutil is with IDrive(c)
