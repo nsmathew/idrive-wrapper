@@ -22,7 +22,9 @@ For other distributions: Download idrive-wrapper.sh, idrive-wrapper_manual.txt a
 Usage
 -----
 Refer to the manual on detailed usage of the program. The .idrivewrc config file provided can be filled in and placed in the ~/.config folder. If the config file is not available then the required parameters have to be given via the command line options. 
+
 The usage in brief is as below:
+<pre>
 idrive-wrapper [OPTIONS [ARGUMENTS]] [IDRIVE_USERID]
 -u      - Upload files/folder given in config file to IDrive
 -U ARG  - Upload files/folder given as ARG(csv) to IDrive
@@ -38,3 +40,4 @@ idrive-wrapper [OPTIONS [ARGUMENTS]] [IDRIVE_USERID]
 -o ARG  - Specify log file
 -h      - Show detailed help
 Config file is at ~/.config/.idrivewrc
+</pre>
