@@ -41,8 +41,12 @@ init_script(){
 	TIMESTMP=$(date +"%Y%m%d-%H%M%S-%N") # generate timestamp : YYYYMMDD-hhmmss
 	CONFIG=~/.config/.idrivewrc #Config file
 	WORKDIR=`mktemp -d` #Temp working directory
+	IDRIVEWRAPPER_VER="idrive-wrapper v0.3b"
+	TIMESTMP_CMD="date +%d-%m-%Y\|%T\|%Z"
 	HELPFILE=/usr/share/doc/idrive-wrapper/idrive-wrapper_manual.txt
-	IDRIVEWRAPPER_VER="idrive-wrapper v0.2b"
+	if [ ! -s "${HELPFILE}" ] ; then
+		HELPFILE="NA"
+	fi
 
 	#Check for required external commands
 	type more &>/dev/null
@@ -70,7 +74,7 @@ process_options(){
 		show_help 1
 		clean_up_exit 1
 	fi
-	ARGS=`getopt  -o udg:l:V:p:shG:LU:D:vP: -- $@`
+	ARGS=`getopt  -o udg:l:V:p:shG:LU:D:vP:o: -- $@`
 	if [ $? != 0 ]
 	then
 		show_help 1
@@ -124,17 +128,37 @@ process_options(){
 				P_ARG=$2
 				shift
 				shift;;
+			-o)	o_FLG=1 #Log file
+				o_ARG=$2
+				shift
+				shift;;
 		esac
 	done
-	#If a non-option argument is given then assign it as the user ID
+	#If a non-option argument is given then assign it as the user ID.
 	if [ ! "$3" = "" ] ; then 
 		USERID_CMDLINE=$3
+	fi
+
+	#If log file given then assign the same as the log file else use /dev/null as argument for tee
+	if [ ${o_FLG:-0} -eq 1 ] ; then
+		if [ ! -f "${o_ARG}" ] ; then
+			touch "${o_ARG}" &>/dev/null
+		fi
+		if [ ! -w "${o_ARG}" ] ; then
+			echo "ERROR:`eval ${TIMESTMP_CMD}`: Cannot write log to ${o_ARG}."
+			LOG_FILE=/dev/null
+		else
+			LOG_FILE="${o_ARG}"
+		fi
+	else
+		LOG_FILE=/dev/null
 	fi
 }
 
 #---  FUNCTION  ----------------------------------------------------------------
 #          NAME:  read_config
-#   DESCRIPTION:  Read the config file and initialize the variables
+#   DESCRIPTION:  Read the config file and initialize the variables.
+#		  Any overrides based on command line values are done here as well.
 #    PARAMETERS:  na
 #       RETURNS:  na
 #-------------------------------------------------------------------------------
@@ -145,27 +169,29 @@ read_config(){
 	c_deletelist="DELETE_LIST"
 	c_idrivehome="IDRIVE_HOME_FOLDER"
 	c_aclbackup="ACL_BACKUP"
+	c_logfile="LOG_FILE"
 	
 	#If config file doesn exist then exit
 	if  [ ! -s "${CONFIG}" ]; then
-		echo "ERROR: Config file, ${CONFIG} does not exist. Exiting"
+		echo "ERROR:`eval ${TIMESTMP_CMD}`: Config file, ${CONFIG} does not exist. Exitingp" | tee -a "${LOG_FILE}"
 		clean_up_exit 1
 	fi
 	
-	echo "INFO: Using config file '${CONFIG}'"
+	echo "INFO:`eval ${TIMESTMP_CMD}`: Using config file '${CONFIG}'" | tee -a "${LOG_FILE}"
 	#Populate the params from config file
 	#USERID
 	#If no user ID given in command line then read from config file
 	if [ "${USERID_CMDLINE}" = "" ] ; then
 		USERID=`grep "${c_username}"  "${CONFIG}" | cut -d'=' -f 2 -s`
 		if [ "${USERID}" = "" ] ; then
-			echo "ERROR: No user in command line nor config file. Exiting Program."
+			echo "ERROR:`eval ${TIMESTMP_CMD}`: No user in command line nor config file. Exiting Program." | tee -a "${LOG_FILE}"
 			clean_up_exit 1
 		fi
 	else
 		USERID="${USERID_CMDLINE}"
 	fi
-	echo "INFO: User ID is '${USERID}'"
+	tmp1=/dev/null
+	echo "INFO:`eval ${TIMESTMP_CMD}`: User ID is '${USERID}'" | tee -a "${LOG_FILE}"
 	#IDRIVEFOLDER
 	#If -P option is given then use the command line parent folder else check available in the config file. 
 	#If not in config file then use IDrive root
@@ -177,7 +203,7 @@ read_config(){
 			DESTFOLDER="/"
 		fi
 	fi
-	echo "INFO: Parent folder in IDrive for upload is '${DESTFOLDER}'"
+	echo "INFO:`eval ${TIMESTMP_CMD}`: Parent folder in IDrive for upload is '${DESTFOLDER}'" | tee -a "${LOG_FILE}"
 	#UPLOAD/DELETE FILEISTS
 	FILELIST_UPLOAD=${WORKDIR}/"${USERID}"_UPLOAD
 	FILELIST_DELETE=${WORKDIR}/"${USERID}"-DELETE
@@ -197,11 +223,15 @@ read_config(){
 	done
 	#ACL BACKUP PATH
 	ACL_BACKUP=`grep "${c_aclbackup}"  "${CONFIG}" | cut -d'=' -f 2 -s`
+	
+	echo "INFO:`eval ${TIMESTMP_CMD}`: Log file is ${LOG_FILE}" | tee -a "${LOG_FILE}" 
+
 }
 
 #---  FUNCTION  ----------------------------------------------------------------
 #          NAME:  call_commands
-#   DESCRIPTION:  This function will call the required functions based on user options from command line
+#   DESCRIPTION:  This function will call the required functions based on user i
+#		  options from command line
 #    PARAMETERS:  na
 #       RETURNS:  na
 #-------------------------------------------------------------------------------
@@ -222,7 +252,7 @@ call_commands(){
 	if [ ${g_FLG:-0} -eq 1 ] ; then #Download based on specified path, download to location depends on -G
 		download
 	elif [ ${G_FLG:-0} -eq 1 ] ; then #Download location, will be used only if -g is passed
-		echo "ERROR: No source files/folders provided with -g. Nothing will be downloaded."
+		echo "ERROR:`eval ${TIMESTMP_CMD}`: No source files/folders provided with -g. Nothing will be downloaded." | tee -a "${LOG_FILE}"
 	fi
 	if [ ${l_FLG:-0} -eq 1 ] || [ ${L_FLG:-0} -eq 1 ] ; then #For -l, search or list based on user input, 
 		list_or_search                             #for -L list the contents from the root folder in IDRIVE
@@ -248,7 +278,7 @@ call_commands(){
 upload(){
 	if [ ${u_FLG:-0} -eq 1 ] ; then
 		if [ ! -s "${FILELIST_UPLOAD}" ] ; then
-			echo "No file/folder list available. Nothing will be uploaded."
+			echo "No file/folder list available. Nothing will be uploaded." | tee -a "${LOG_FILE}"
 			return
 		fi
 		upload_file="${FILELIST_UPLOAD}"
@@ -268,11 +298,11 @@ upload(){
 	#Perform ACL backup if requested first and then upload
 	backup_ACL "${upload_file}"
 
-	echo "INFO: File/folder list for upload is as below..."
+	echo "INFO:`eval ${TIMESTMP_CMD}`: File/folder list for upload is as below..." | tee -a "${LOG_FILE}"
 	cat "${upload_file}"
-	echo "INFO: Starting backup..."
-	idevsutil --xml-output --password-file="${PASSWD}" --files-from="${upload_file}" / "${USERID}"@"${SERVER}"::home/"${DESTFOLDER}"
-	echo "INFO: Upload is complete, check log for any errors."
+	echo "INFO:`eval ${TIMESTMP_CMD}`: Starting backup..." | tee -a "${LOG_FILE}"
+	idevsutil --xml-output --password-file="${PASSWD}" --files-from="${upload_file}" / "${USERID}"@"${SERVER}"::home/"${DESTFOLDER}" 2>&1 | tee -a "${LOG_FILE}"
+	echo "INFO:`eval ${TIMESTMP_CMD}`: Upload is complete, check log for any errors." | tee -a "${LOG_FILE}"
 }
 
 #---  FUNCTION  ----------------------------------------------------------------
@@ -284,7 +314,7 @@ upload(){
 delete(){
 	if [ ${d_FLG:-0} -eq 1 ] ; then
 		if [ ! -s "${FILELIST_DELETE}" ] ; then
-			echo "No file/folder list available. Nothing will be deleted."
+			echo "No file/folder list available. Nothing will be deleted." | tee -a "${LOG_FILE}"
 			return
 		fi
 		delete_file="${FILELIST_DELETE}"
@@ -300,11 +330,11 @@ delete(){
 		done
 		D_FLG=""
 	fi
-	echo "INFO: File/folder list for deletion is as below..."
+	echo "INFO:`eval ${TIMESTMP_CMD}`: File/folder list for deletion is as below..." | tee -a "${LOG_FILE}"
 	cat "${delete_file}"
-	echo "INFO: Starting file deletion..."
-	idevsutil --xml-output --password-file="${PASSWD}" --delete-items --files-from="${delete_file}" "${USERID}"@"${SERVER}"::home/
-	echo "INFO: File deletion is complete, check log for any errors."
+	echo "INFO:`eval ${TIMESTMP_CMD}`: Starting file deletion..." | tee -a "${LOG_FILE}"
+	idevsutil --xml-output --password-file="${PASSWD}" --delete-items --files-from="${delete_file}" "${USERID}"@"${SERVER}"::home/ 2>&1 | tee -a "${LOG_FILE}"
+	echo "INFO:`eval ${TIMESTMP_CMD}`: File deletion is complete, check log for any errors." | tee -a "${LOG_FILE}"
 }
 
 #---  FUNCTION  ----------------------------------------------------------------
@@ -327,17 +357,17 @@ download(){
 	if [ ${G_FLG} -ne 1 ] || [ ! -d "${G_ARG}" ] ; then
 		mkdir -p /tmp/idrive-downloads/
 		download_location="/tmp/idrive-downloads/"
-		echo "INFO: No valid download location specified, using ${download_location}"
+		echo "INFO:`eval ${TIMESTMP_CMD}`: No valid download location specified, using ${download_location}" | tee -a "${LOG_FILE}"
 	else
 		download_location="${G_ARG}"
-		echo "INFO: Files will be downloaded to ${download_location}"
+		echo "INFO:`eval ${TIMESTMP_CMD}`: Files will be downloaded to ${download_location}" | tee -a "${LOG_FILE}"
 	fi
-	echo "INFO: Download list is..."
+	echo "INFO:`eval ${TIMESTMP_CMD}`: Download list is..." | tee -a "${LOG_FILE}"
 	cat ${filelist_download}
-	echo "INFO: Starting download..."
-	idevsutil --xml-output --password-file="${PASSWD}" --files-from="${filelist_download}" "${USERID}"@"${SERVER}"::home/ "${download_location}" 
-	echo "INFO: Download complete. Check logs for errors."
-	echo "INFO: If ACLs were backed up, file permissions/owner/group can be restored using the setfacl command."
+	echo "INFO:`eval ${TIMESTMP_CMD}`: Starting download..." | tee -a "${LOG_FILE}"
+	idevsutil --xml-output --password-file="${PASSWD}" --files-from="${filelist_download}" "${USERID}"@"${SERVER}"::home/ "${download_location}" 2>&1  | tee -a "${LOG_FILE}"
+	echo "INFO:`eval ${TIMESTMP_CMD}`: Download complete. Check logs for errors." | tee -a "${LOG_FILE}"
+	echo "INFO:`eval ${TIMESTMP_CMD}`: If ACLs were backed up, file permissions/owner/group can be restored using the setfacl command." | tee -a "${LOG_FILE}"
 }
 
 
@@ -348,23 +378,23 @@ download(){
 #       RETURNS:  na
 #-------------------------------------------------------------------------------
 space_usage(){
-	echo "INFO: Requesting for space usage..." 
+	echo "INFO:`eval ${TIMESTMP_CMD}`: Requesting for space usage..." | tee -a "${LOG_FILE}" 
 	RETVAL=$(idevsutil --xml-output --password-file="${PASSWD}" --get-quota "${USERID}"@"${SERVER}"::home/)
-	echo ${RETVAL}
+	echo ${RETVAL} | tee -a "${LOG_FILE}"
 	echo "${RETVAL}" | grep "SUCCESS" 2>&1>/dev/null
 	if [ $? -eq 1 ] ; then
-		echo "ERROR: Cannot retrieve space usage."
+		echo "ERROR:`eval ${TIMESTMP_CMD}`: Cannot retrieve space usage." | tee -a "${LOG_FILE}"
 		return
 	fi
 	read tq uq <<< $(echo "${RETVAL}" | tr -d '\n' | awk -F'"' '/totalquota/{v1=$4}/usedquota/{v2=$6}/ERROR/{v1="ERROR"} {printf v1" "v2}') 
 	if [ "${tq:-0}" = "ERROR" ] ; then
 		return
 	fi
-	echo "INFO INTERPRETER-"
+	echo "INFO INTERPRETER-`eval ${TIMESTMP_CMD}`:" | tee -a "${LOG_FILE}"
 	data_size_interpreter "${tq}"
-	echo "TOTAL SPACE: ${INTERPRETED_SIZE}"
+	echo "TOTAL SPACE: ${INTERPRETED_SIZE}" | tee -a "${LOG_FILE}"
 	data_size_interpreter "${uq}"
-	echo "USED SPACE: ${INTERPRETED_SIZE}"
+	echo "USED SPACE: ${INTERPRETED_SIZE}" | tee -a "${LOG_FILE}"
 }
 
 #---  FUNCTION  ----------------------------------------------------------------
@@ -379,8 +409,8 @@ list_or_search(){
 	elif [ "${L_FLG:-0}" -eq 1 ] ; then
 		searchterm="${DESTFOLDER}"
 	fi
-	echo "INFO: Searching or listing for - '${searchterm}'..."
-	idevsutil --xml-output --password-file="${PASSWD}" --search "${USERID}"@"${SERVER}"::home/"${searchterm}"
+	echo "INFO:`eval ${TIMESTMP_CMD}`: Searching or listing for - '${searchterm}'..." | tee -a "${LOG_FILE}"
+	idevsutil --xml-output --password-file="${PASSWD}" --search "${USERID}"@"${SERVER}"::home/"${searchterm}" 2>&1 | tee -a "${LOG_FILE}"
 }
 
 #---  FUNCTION  ----------------------------------------------------------------
@@ -390,8 +420,8 @@ list_or_search(){
 #       RETURNS:  na
 #-------------------------------------------------------------------------------
 versioning_details(){
-	echo "INFO: Getting versioning details for - '${V_ARG}'..."
-	idevsutil --xml-output --password-file="${PASSWD}" --version-info "${USERID}"@"${SERVER}"::home/"${V_ARG}"
+	echo "INFO:`eval ${TIMESTMP_CMD}`: Getting versioning details for - '${V_ARG}'..." | tee -a "${LOG_FILE}"
+	idevsutil --xml-output --password-file="${PASSWD}" --version-info "${USERID}"@"${SERVER}"::home/"${V_ARG}" 2>&1 | tee -a "${LOG_FILE}"
 }
 
 #---  FUNCTION  ----------------------------------------------------------------
@@ -401,17 +431,17 @@ versioning_details(){
 #       RETURNS:  ba
 #-------------------------------------------------------------------------------
 file_properties(){
-	echo "INFO: Getting properties for - '${p_ARG}'..."                                                                                                                                                                         
+	echo "INFO:`eval ${TIMESTMP_CMD}`: Getting properties for - '${p_ARG}'..." | tee -a "${LOG_FILE}" 
 	RETVAL=$(idevsutil --xml-output --password-file="${PASSWD}" --properties "${USERID}"@"${SERVER}"::home/"${p_ARG}")
-	echo ${RETVAL}
+	echo ${RETVAL} | tee -a "${LOG_FILE}"
 	fsz=0
 	read fsz <<< $(echo "${RETVAL}" | awk -F'["| ]' '/size/{v1=$3}/ERROR/{v1="ERROR"} {printf v1}')
 	if [ "${fsz:-0}" = "ERROR" ] ; then
 		return
 	fi
-	echo "INFO INTERPRETER-"
+	echo "INFO INTERPRETER-`eval ${TIMESTMP_CMD}`:" | tee -a "${LOG_FILE}"
 	data_size_interpreter "${fsz}"
-	echo "FILE/FOLDER SIZE: ${INTERPRETED_SIZE}"
+	echo "FILE/FOLDER SIZE: ${INTERPRETED_SIZE}" | tee -a "${LOG_FILE}"
 }
 
 #---  FUNCTION  ----------------------------------------------------------------
@@ -421,6 +451,10 @@ file_properties(){
 #       RETURNS:  na
 #-------------------------------------------------------------------------------
 show_help(){
+	if [ "${HELPFILE}" = "NA" ] ; then
+		echo "ERROR:`eval ${TIMESTMP_CMD}`: No help file or manual found."
+		return
+	fi
 	if [ $1 -eq 1 ] ; then
 		echo "idrive-wrapper usage as below:"
 		#Extract the brief usage summary from help file
@@ -464,17 +498,17 @@ get_password(){
 #       RETURNS:  na
 #-------------------------------------------------------------------------------
 get_server(){
-	echo "INFO: Retrieving server details..."
+	echo "INFO:`eval ${TIMESTMP_CMD}`: Retrieving server details..." | tee -a "${LOG_FILE}"
 	RETVAL=$(idevsutil --getServerAddress "${USERID}" --password-file="${PASSWD}")
 	SERVER=$(echo ${RETVAL} | awk -F'["]' '/SUCCESS/{v1=$4}/ERROR/{v1=$2} {printf v1}')
 	#If return contains error then exit
 	if [ "${SERVER}" = "ERROR" ]
 	then
-		echo "ERROR: Cannot get server details, exiting."
-		echo ${RETVAL}
+		echo "ERROR:`eval ${TIMESTMP_CMD}`: Cannot get server details, exiting." | tee -a "${LOG_FILE}"
+		echo ${RETVAL} | tee -a "${LOG_FILE}"
 		clean_up_exit 1
 	fi
-	echo "INFO: Server recevied as ${SERVER}"
+	echo "INFO:`eval ${TIMESTMP_CMD}`: Server recevied as ${SERVER}" | tee -a "${LOG_FILE}"
 }
 
 #---  FUNCTION  ----------------------------------------------------------------
@@ -485,17 +519,16 @@ get_server(){
 #       RETURNS:  
 #-------------------------------------------------------------------------------
 backup_ACL(){
-	echo $1
 	if [ "${ACL_BACKUP}" = "" ] ; then
-		echo "INFO: ACL Backup not requested in config file."
+		echo "INFO:`eval ${TIMESTMP_CMD}`: ACL Backup not requested in config file." | tee -a "${LOG_FILE}"
 		return
 	fi
 	if [ ! -d "${ACL_BACKUP}" ] ; then
-		echo "ERROR: ACL Backup folder ${ACL_BACKUP} is not valid/does not exist. ACL backup will not be performed."
+		echo "ERROR:`eval ${TIMESTMP_CMD}`: ACL Backup folder ${ACL_BACKUP} is not valid/does not exist. ACL backup will not be performed." | tee -a "${LOG_FILE}"
 		return
 	fi
 	if [ ${C_getfacl_AVAILABLE:-0} -ne 1 ] ; then
-		echo "ERROR: 'getfacl' command is not available. ACL backup will not be performed"
+		echo "ERROR:`eval ${TIMESTMP_CMD}`: 'getfacl' command is not available. ACL backup will not be performed" | tee -a "${LOG_FILE}"
 		return
 	fi
 	filename="${ACL_BACKUP%/}"/idrive-acls-${TIMESTMP}.txt
@@ -508,9 +541,9 @@ backup_ACL(){
 		getfacl -R "${PTH}" >> "${filename}"
 	done
 	if [ $? != 0 ] ; then
-		echo "ERROR: ACL backup might not have completed. Please check logs and verify in backup location."
+		echo "ERROR:`eval ${TIMESTMP_CMD}`: ACL backup might not have completed. Please check logs and verify in backup location." | tee -a "${LOG_FILE}"
 	else
-		echo "INFO: ACL Backup completed in ${filename}"
+		echo "INFO:`eval ${TIMESTMP_CMD}`: ACL Backup completed in ${filename}" | tee -a "${LOG_FILE}"
 	fi
 }
 
@@ -560,7 +593,7 @@ clean_up_exit(){
 init_script
 #Process the command line options
 process_options $# $@
-echo "IDrive backup wrapper script started."
+echo "IDrive backup wrapper script started." | tee -a "${LOG_FILE}"
 #Read the config file and assign params and populate file lists
 read_config
 #Get the password and server

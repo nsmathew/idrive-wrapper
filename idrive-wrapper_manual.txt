@@ -14,6 +14,7 @@ idrive-wrapper [OPTIONS [ARGUMENTS]] [IDRIVE_USERID]
 -v ARG  - Show versioning info for ARG
 -p ARG	- Show file/folder properties for ARG 
 -s	- Show space usage in IDrive 
+-o ARG	- Specify log file 
 -h 	- Show detailed help 
 Config file is at ~/.config/.idrivewrc 
 (Usage Summary:END)
@@ -46,7 +47,7 @@ along with this then the program will print the IDrive server address and exit.
 Delete from IDrive. The list of files and folders are taken from DELETE_LIST key value from the config file. If no file/folders are given then program will not do any deletion.
 
 -D
-Delete from IDrive the file/folders given as argument. Requires a mandatory argument which should contains comma separated paths of file and folders in IDrive which need to be delete.
+Delete from IDrive the file/folders given as argument. Requires a mandatory argument which should contain comma separated paths of file and folders in IDrive which need to be delete.
 
 -g ARG
 Get/download files/folders from IDrive. Requires a mandatory argument containing valid comma separated paths in IDrive.  The files and folders mentioned will be downloaded. To specify a download location use -G option.
@@ -74,6 +75,10 @@ Show the space usage in IDrive root. Shows total and used space. For individual 
 
 -v
 Displays the current version of the idrive-wrapper program and the version of installed idevsutil program.
+
+-o ARG
+Log file. Requires a mandatory argument to which the log entries will be written to in append mode. File will be created if it does not exist. IF path is invalid or there is no write access then no logs will be written.
+Output to terminal will happen irrespective of if a log file has been specified for or not.
 
 -h
 Displays this help file.
@@ -138,11 +143,10 @@ Is used to provide more accurate file sizes up to 2 decimal places for the -s an
 
 OTHER INFO
 ----------
-- Program is written in shell scripting.
+- Program is written in shell scripting and tested in bash.
 - idevsutil is a command line utility provided by IDrive(c) for performing actions on their cloud backup service. More information on the utility and APIs is available at http://evs.idrive.com/getting-started.htm. Legal
   information is available at http://evs.idrive.com/terms-of-service.htm.
-- Source code for idriver-wrapper is avialble as https://github.com/nsmathew/idrive-wrapper.
-- Written as a shell script.
+- Source code for idriver-wrapper is available as https://github.com/nsmathew/idrive-wrapper. License is GPLv3.
 
 CONTRIBUTORS
 ------------
@@ -150,4 +154,6 @@ CONTRIBUTORS
  
 VERSIONS
 --------
-0.2b - Current
+0.3b - Current
+0.2b
+0.1b
