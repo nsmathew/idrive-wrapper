@@ -107,7 +107,7 @@ This will be the parent folder to which the data for upload will be uploaded wit
 
 ACL_BACKUP
 Path to which the ACL info for the current list of files/folders being uploaded should be saved. This should be a valid path(program will not create it). If not valid or not provided then no ACL backup will be taken. A
-new file is created for every upload run and has the timestamp in the filename. Same file will be used for one execution when both -u and -U options are given. IDrive does not save file metadata like 
+new file is created for every upload run and has the timestamp and the user id in the filename. Same file will be used for one execution when both -u and -U options are given. IDrive does not save file metadata like 
 permissions/owner/group. So as part of restore, after downloading required data from IDrive this ACL backup file can be used to restore the metadata. The path in the backup file will have to be changed to reflect the 
 download location. It is recommended to include this ACL backup directory in your list of folders to be backed up. getfacl is used to backup the ACLs and should be available in the system for backup to work. setfacl can 
 be used to restore them. Refer to 'man setfacl' for more information.

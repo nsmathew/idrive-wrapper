@@ -537,7 +537,8 @@ backup_ACL(){
 		echo "ERROR:`eval ${TIMESTMP_CMD}`: 'getfacl' command is not available. ACL backup will not be performed" | tee -a "${LOG_FILE}"
 		return
 	fi
-	filename="${ACL_BACKUP%/}"/idrive-acls-${TIMESTMP}.txt
+	converted_uname=`echo "${USERID}" | sed 's/[^a-zA-Z0-9]/_/g'` #Remove the spl chars and replace with '_'
+	filename="${ACL_BACKUP%/}"/${converted_uname}-acls-${TIMESTMP}.txt # Adding uname to filename incase of multiple accounts
 	PTH=""
 	cat $1 | while read PTH; do
 	
@@ -591,7 +592,8 @@ data_size_interpreter(){
 #       RETURNS:  Exit status to shell
 #-------------------------------------------------------------------------------
 clean_up_exit(){
-	rm -fr ${WORKDIR}
+	rm -fr ./evs_temp/ #Temp directory created by idevsutil
+	rm -fr ${WORKDIR} #Temp directory created for file/folder list
 	exit $1
 }
 
