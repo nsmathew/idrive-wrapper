@@ -17,11 +17,11 @@ Installation
 ------------
 For Arch Linux: Use the PKGBUILD from the AUR, https://aur.archlinux.org/packages/idrive-wrapper.
 
-For other distributions: Download idrive-wrapper.sh, idrive-wrapper_manual.txt and .idrivewrc. Then download the idevsutil from the IDrive site, http://evs.idrive.com/download.htm#command-line-utility. 
+For other distributions: Download idrive-wrapper.sh, idrive-wrapper_manual.txt and .idrivewrc. Then download the 'idevsutil' from the IDrive site, http://evs.idrive.com/download.htm#command-line-utility and install it.
 
 Usage
 -----
-Refer to the manual on detailed usage of the program. The .idrivewrc config file provided can be filled in and placed in the ~/.config folder. If the config file is not available then the required parameters have to be given via the command line options. 
+Refer to the manual on detailed usage of the program. The .idrivewrc config file provided can be filled in and placed in the ~/.config folder. If the config file is not used then the required parameters have to be given via the command line options. 
 
 The usage in brief is as below:
 <pre>

@@ -16,7 +16,7 @@ idrive-wrapper [OPTIONS [ARGUMENTS]] [IDRIVE_USERID]
 -s	- Show space usage in IDrive 
 -o ARG	- Specify log file 
 -h 	- Show detailed help 
-Config file is at ~/.config/.idrivewrc 
+Config file location - ~/.config/.idrivewrc 
 (Usage Summary:END)
 
 (Detailed Manual:)
@@ -34,19 +34,19 @@ Upload to IDrive. The list of files and folders are taken from UPLOAD_LIST key v
 the -P option else in IDRIVE_HOME_FOLDER key value in config file and the uploads will happen relative to this directory in IDrive. If a valid path is provided in ACL_BACKUP then program will backup the ACL 
 information for the files/folders included in current upload run. For more information on ACL_BACKUP refer to the config section.
 
--U
+-U ARG
 Upload to IDrive the files/folders given as the argument. Requires a mandatory argument which should contain comma separated paths of files and folders to be uploaded. The parent directory will be taken from the -P 
 option or from the config file value for IDRIVE_HOME_FOLDER. If a valid path is provided in ACL_BACKUP then program will backup the ACL information for the files/folders included in current upload run. For more 
 information on ACL_BACKUP refer to the config section.
 
--P
+-P ARG
 IDrive home folder. Requires a mandatory argument which should be the parent folder in IDrive. This will have precedence over the value given in IDRIVE_HOME_FOLDER key in the config file. If no other option is used
 along with this then the program will print the IDrive server address and exit.
 
 -d
 Delete from IDrive. The list of files and folders are taken from DELETE_LIST key value from the config file. If no file/folders are given then program will not do any deletion.
 
--D
+-D ARG
 Delete from IDrive the file/folders given as argument. Requires a mandatory argument which should contain comma separated paths of file and folders in IDrive which need to be delete.
 
 -g ARG
@@ -89,7 +89,7 @@ server used for backup and exit.
 
 CONFIG FILE 
 ----------- 
-The config file should be available at ~/.config/.idriverc. This a key value pair file. An empty file with the available keys is present in /usr/share/doc/idrive-wrapper/. 
+The config file should be available at ~/.config/.idriverc. This a key value pair file. A template file with the available keys is present in /usr/share/doc/idrive-wrapper/. 
 This file can contain the below keys:
 
 UNAME
@@ -154,11 +154,12 @@ CONTRIBUTORS
  
 VERSIONS
 --------
-1.0 - Current
+1.1 - Current
+1.0
 0.2b
 0.1b
 
 COPYRIGHT
 ---------
-Copyright for the idrive-wrapper script is with Nitin Mathew, 2013
-Copyright for idevsutil is with IDrive(c)
+Copyright for the idrive-wrapper script is with Nitin Mathew, 2013.
+Copyright for idevsutil is with IDrive.

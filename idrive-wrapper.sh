@@ -41,7 +41,7 @@ init_script(){
 	TIMESTMP=$(date +"%Y%m%d-%H%M%S-%N") # generate timestamp : YYYYMMDD-hhmmss
 	CONFIG=~/.config/.idrivewrc #Config file
 	WORKDIR=`mktemp -d` #Temp working directory
-	IDRIVEWRAPPER_VER="idrive-wrapper v1.0"
+	IDRIVEWRAPPER_VER="idrive-wrapper v1.1"
 	TIMESTMP_CMD="date +%d-%m-%Y\|%T\|%Z"
 	if [ ! -s "/usr/share/doc/idrive-wrapper/idrive-wrapper_manual.txt" ] ; then
 		if [ ! -s "./idrive-wrapper_manual.txt" ] ; then
