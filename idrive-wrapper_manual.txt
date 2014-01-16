@@ -22,116 +22,155 @@ Config file location - ~/.config/.idrivewrc
 (Detailed Manual:)
 NAME 
 ---- 
-idrive-wrapper - Runs the idevsutil commands for uploading, deleting, downloading and other actions using command line options. idevsutil is an official command line utility provided by IDrive(c).
+idrive-wrapper - Runs the idevsutil commands for uploading, deleting, downloading and other actions
+using command line options. idevsutil is an official command line utility provided by IDrive(c).
 
 USAGE 
 ----- 
-idrive-wrapper [OPTIONS [ARGUMENTS]] [IDRIVE_USERID]
+idrive-wrapper [OPTIONS [ARGUMENTS]]... [IDRIVE_USERID]
 
-[OPTIONS [ARGUMENTS]] 
--u
-Upload to IDrive. The list of files and folders are taken from UPLOAD_LIST key value from the config file. If no file/folders are given then program will not do any uploads. A parent directory can be provided using 
-the -P option else in IDRIVE_HOME_FOLDER key value in config file and the uploads will happen relative to this directory in IDrive. If a valid path is provided in ACL_BACKUP then program will backup the ACL 
-information for the files/folders included in current upload run. For more information on ACL_BACKUP refer to the config section.
+[OPTIONS [ARGUMENTS]]... 
+-u 
+Upload to IDrive. The list of files and folders are taken from UPLOAD_LIST key value from the config
+file. If no file/folders are given then program will not do any uploads. A parent directory can be
+provided using the -P option else in IDRIVE_HOME_FOLDER key value in config file and the uploads
+will happen relative to this directory in IDrive. If a valid path is provided in ACL_BACKUP then
+program will backup the ACL information for the files/folders included in current upload run. For
+more information on ACL_BACKUP refer to the config section.
 
 -U ARG
-Upload to IDrive the files/folders given as the argument. Requires a mandatory argument which should contain comma separated paths of files and folders to be uploaded. The parent directory will be taken from the -P 
-option or from the config file value for IDRIVE_HOME_FOLDER. If a valid path is provided in ACL_BACKUP then program will backup the ACL information for the files/folders included in current upload run. For more 
-information on ACL_BACKUP refer to the config section.
+Upload to IDrive the files/folders given as the argument. Requires a mandatory argument which should
+contain comma separated paths of files and folders to be uploaded. The parent directory will be
+taken from the -P option or from the config file value for IDRIVE_HOME_FOLDER. If a valid path is
+provided in ACL_BACKUP then program will backup the ACL information for the files/folders included
+in current upload run. For more information on ACL_BACKUP refer to the config section.
 
 -P ARG
-IDrive home folder. Requires a mandatory argument which should be the parent folder in IDrive. This will have precedence over the value given in IDRIVE_HOME_FOLDER key in the config file. If no other option is used
-along with this then the program will print the IDrive server address and exit.
+IDrive home folder. Requires a mandatory argument which should be the parent folder in IDrive. This
+will have precedence over the value given in IDRIVE_HOME_FOLDER key in the config file. If no other
+option is used along with this then the program will print the IDrive server address and exit.
 
 -d
-Delete from IDrive. The list of files and folders are taken from DELETE_LIST key value from the config file. If no file/folders are given then program will not do any deletion.
+Delete from IDrive. The list of files and folders are taken from DELETE_LIST key value from the
+config file. If no file/folders are given then program will not do any deletion.
 
 -D ARG
-Delete from IDrive the file/folders given as argument. Requires a mandatory argument which should contain comma separated paths of file and folders in IDrive which need to be delete.
+Delete from IDrive the file/folders given as argument. Requires a mandatory argument which should
+contain comma separated paths of file and folders in IDrive which need to be delete.
 
 -g ARG
-Get/download files/folders from IDrive. Requires a mandatory argument containing valid comma separated paths in IDrive.  The files and folders mentioned will be downloaded. To specify a download location use -G option.
-If no -G option is used then the files will be downloaded to /tmp/idrive-downloads/. IDrive does not store the file metadata info like permissions/owner/group. The ACL_BACKUP config option can be used while uploading and
-same can be used to restore this metadata. For more information on ACL_BACKUP refer to the config section.
+Get/download files/folders from IDrive. Requires a mandatory argument containing valid comma
+separated paths in IDrive.  The files and folders mentioned will be downloaded. To specify a
+download location use -G option.  If no -G option is used then the files will be downloaded to
+/tmp/idrive-downloads/. IDrive does not store the file metadata info like permissions/owner/group.
+The ACL_BACKUP config option can be used while uploading and same can be used to restore this
+metadata. For more information on ACL_BACKUP refer to the config section.
 
 -G ARG
-Download location. Is valid only if used with -g and requires a mandatory argument. Should specify one valid directory path to which the files/folders mentioned in -g option will be downloaded to.
+Download location. Is valid only if used with -g and requires a mandatory argument. Should specify
+one valid directory path to which the files/folders mentioned in -g option will be downloaded to.
 
 -l ARG
-List or search for files and folders in IDrive. Requires a mandatory argument. If the path provided exists in IDrive the contents of the folder will be listed or if a file then the file info will be listed. If not then
-info for all matching instances of given search term will be listed.
+List or search for files and folders in IDrive. Requires a mandatory argument. If the path provided
+exists in IDrive the contents of the folder will be listed or if a file then the file info will be
+listed. If not then info for all matching instances of given search term will be listed.
 
 -L
-List the contents of the IDrive home folder. The home folder is set using -P option or from the config file for key IDRIVE_HOME_FOLDER.
+List the contents of the IDrive home folder. The home folder is set using -P option or from the
+config file for key IDRIVE_HOME_FOLDER.
 
 -V ARG
-Versioning info for a file. Requires a mandatory argument. If the provided path is a valid for a file in IDrive and there are multiple versions of the file stored then this information will be displayed.
+Versioning info for a file. Requires a mandatory argument. If the provided path is a valid for a
+file in IDrive and there are multiple versions of the file stored then this information will be
+displayed.
 
 -p ARG
-File/Folder properties. Requires a mandatory argument. If the provided path if valid for a file or folder in IDrive then the file/folder property info will be shown.
+File/Folder properties. Requires a mandatory argument. If the provided path if valid for a file or
+folder in IDrive then the file/folder property info will be shown.
 
 -s
-Show the space usage in IDrive root. Shows total and used space. For individual file/folder size use the -p option.
+Show the space usage in IDrive root. Shows total and used space. For individual file/folder size use
+the -p option.
 
 -v
-Displays the current version of the idrive-wrapper program and the version of installed idevsutil program.
+Displays the current version of the idrive-wrapper program and the version of installed idevsutil
+program.
 
 -o ARG
-Log file. Requires a mandatory argument to which the log entries will be written to in append mode. File will be created if it does not exist. IF path is invalid or there is no write access then no logs will be written.
-Output to terminal will happen irrespective of if a log file has been specified for or not.
+Log file. Requires a mandatory argument to which the log entries will be written to in append mode.
+File will be created if it does not exist. If path is invalid or there is no write access then no
+logs will be written.  Output to terminal will happen irrespective of if a log file has been
+specified for or not.
 
 -h
 Displays this help file.
 
 [IDRIVE_USERID]
-The user ID to login to IDrive can be provided in the command line. This will override what is given in the config file for UNAME key value. If run only with USERID and without any above options the program will display
-server used for backup and exit.
+The user ID to login to IDrive can be provided in the command line. This will override what is given
+in the config file for UNAME key value. If run only with USERID and without any above options the
+program will display server used for backup and exit.
 
 CONFIG FILE 
 ----------- 
-The config file should be available at ~/.config/.idriverc. This a key value pair file. A template file with the available keys is present in /usr/share/doc/idrive-wrapper/. 
-This file can contain the below keys:
+The config file should be available at ~/.config/.idriverc. This a key value pair file. A template
+file with the available keys is present in /usr/share/doc/idrive-wrapper/.  This file can contain
+the below keys:
 
 UNAME
-The user ID registered with IDrive. Single value. If provided in command line then that value takes precedence. If not provided at either place then program will exit.
+The user ID registered with IDrive. Single value. If provided in command line then that value takes
+precedence. If not provided at either place then program will exit.
 
 UPLOAD_LIST
-A comma separated list of file and folder paths to be uploaded to IDrive. Absolute paths are preferred. If not given then the upload operation will not proceed. Upload into IDrive will be done relative to parent folder
-given IDRIVE_HOME_FOLDER key.
+A comma separated list of file and folder paths to be uploaded to IDrive. Absolute paths are
+preferred. If not given then the upload operation will not proceed. Upload into IDrive will be done
+relative to parent folder given IDRIVE_HOME_FOLDER key.
 
 DELETE_LIST
-A comma separated list of file and folder paths to be delete from IDrive. Paths should be corresponding to IDrive root. If not given then the delete operation will not proceed.
+A comma separated list of file and folder paths to be delete from IDrive. Paths should be
+corresponding to IDrive root. If not given then the delete operation will not proceed.
 
 IDRIVE_HOME_FOLDER
-This will be the parent folder to which the data for upload will be uploaded with both -u and -U options. If not given the system will default to IDrive root folder. This will also be used with -L option.
+This will be the parent folder to which the data for upload will be uploaded with both -u and -U
+options. If not given the system will default to IDrive root folder. This will also be used with -L
+option.
 
 ACL_BACKUP
-Path to which the ACL info for the current list of files/folders being uploaded should be saved. This should be a valid path(program will not create it). If not valid or not provided then no ACL backup will be taken. A
-new file is created for every upload run and has the timestamp and the user id in the filename. Same file will be used for one execution when both -u and -U options are given. IDrive does not save file metadata like 
-permissions/owner/group. So as part of restore, after downloading required data from IDrive this ACL backup file can be used to restore the metadata. The path in the backup file will have to be changed to reflect the 
-download location. It is recommended to include this ACL backup directory in your list of folders to be backed up. getfacl is used to backup the ACLs and should be available in the system for backup to work. setfacl can 
-be used to restore them. Refer to 'man setfacl' for more information.
+Path to which the ACL info for the current list of files/folders being uploaded should be saved.
+This should be a valid path(program will not create it). If not valid or not provided then no ACL
+backup will be taken. A new file is created for every upload run and has the timestamp and the user
+id in the filename. Same file will be used for one execution when both -u and -U options are given.
+IDrive does not save file metadata like permissions/owner/group. So as part of restore, after
+downloading required data from IDrive this ACL backup file can be used to restore the metadata. The
+path in the backup file will have to be changed to reflect the download location. It is recommended
+to include this ACL backup directory in your list of folders to be backed up. getfacl is used to
+backup the ACLs and should be available in the system for backup to work. setfacl can be used to
+restore them. Refer to 'man setfacl' for more information.
 
 EXAMPLES
 --------
 $ idrive-wrapper -u
 This will upload files from the config file
 
-$ idrive-wrapper -D /ArchLinux/home/usr1/Documents/sample.txt,/ArchLinux/tmp/test/ usr1.abc@provider.com
-This will move the file /ArchLinux/home/usr1/Documents/sample.txt and the folder /ArchLinux/tmp/test/ in IDrive to the trash. The user used for authentication will be usr1.abc@provider.com.
+$ idrive-wrapper -D /ArcLin/home/usr1/Doc/sample.txt,/ArcLin/tmp/test/ usr1.abc@provider.com
+This will move the file /ArcLin/home/usr1/Doc/sample.txt and the folder /ArcLin/tmp/test/ in IDrive
+to the trash. The user used for authentication will be usr1.abc@provider.com.
 
-$ idrive-wrapper -g /ArchLinux/home/usr1/ -G /home/usr1/fromcloud/
-This will download the contents of /ArchLinux/home/usr1/ from IDrive into /home/usr1/fromcloud/ in your local machine
+$ idrive-wrapper -g /ArcLin/home/usr1/ -G /home/usr1/fromcloud/
+This will download the contents of /ArcLin/home/usr1/ from IDrive into /home/usr1/fromcloud/ in
+your local machine
 
 SECURITY INFO
 -------------
-- The password is currently accepted via prompt only. For scheduling solutions, 'expect' can be looked at.
-- There is no option to use the private encryption file as well. Only default encryption mode is currently supported.
+- The password is currently accepted via prompt only. For scheduling solutions, 'expect' can be
+  looked at.
+- There is no option to use the private encryption file as well. Only default encryption mode is
+  currently supported.
 
 MANDATORY SOFTWARE
 ------------------
 idevsutil
-Command line utility provided by IDrive(c). All operations on IDrive are carried out using this program.
+Command line utility provided by IDrive(c). All operations on IDrive are carried out using this
+program.
 
 OPTIONAL SOFTWARE
 -----------------
@@ -139,14 +178,18 @@ getfacl
 Is used to backup ACLs for the -u and -U options. If not available then ACL backup will not happen.
 
 bc
-Is used to provide more accurate file sizes up to 2 decimal places for the -s and -p options. If not available then size info will be given in whole numbers.
+Is used to provide more accurate file sizes up to 2 decimal places for the -s and -p options. If not
+available then size info will be given in whole numbers.
 
 OTHER INFO
 ----------
 - Program is written in shell scripting and tested in bash.
-- idevsutil is a command line utility provided by IDrive(c) for performing actions on their cloud backup service. More information on the utility and APIs is available at http://evs.idrive.com/getting-started.htm. Legal
-  information is available at http://evs.idrive.com/terms-of-service.htm.
-- Source code for idriver-wrapper is available as https://github.com/nsmathew/idrive-wrapper. License is GPLv3.
+- idevsutil is a command line utility provided by IDrive(c) for performing actions on their cloud
+  backup service. More information on the utility and APIs is available at
+  http://evs.idrive.com/getting-started.htm. Legal information is available at
+  http://evs.idrive.com/terms-of-service.htm.
+- Source code for idriver-wrapper is available as https://github.com/nsmathew/idrive-wrapper.
+  License is GPLv3.
 
 CONTRIBUTORS
 ------------
@@ -154,7 +197,8 @@ CONTRIBUTORS
  
 VERSIONS
 --------
-1.1 - Current
+1.2 - Current
+1.1
 1.0
 0.2b
 0.1b

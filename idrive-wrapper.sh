@@ -33,15 +33,15 @@
 #          NAME:  init_script
 #   DESCRIPTION:  Initialize the main variables which are not read from the 
 #		  config file.
-#    PARAMETERS:  
-#       RETURNS:  
+#    PARAMETERS: na
+#       RETURNS: na
 #-------------------------------------------------------------------------------
 init_script(){
 	#initial params
 	TIMESTMP=$(date +"%Y%m%d-%H%M%S-%N") # generate timestamp : YYYYMMDD-hhmmss
 	CONFIG=~/.config/.idrivewrc #Config file
 	WORKDIR=`mktemp -d` #Temp working directory
-	IDRIVEWRAPPER_VER="idrive-wrapper v1.1"
+	IDRIVEWRAPPER_VER="idrive-wrapper v1.2"
 	TIMESTMP_CMD="date +%d-%m-%Y\|%T\|%Z"
 	if [ ! -s "/usr/share/doc/idrive-wrapper/idrive-wrapper_manual.txt" ] ; then
 		if [ ! -s "./idrive-wrapper_manual.txt" ] ; then
@@ -51,7 +51,6 @@ init_script(){
 		fi
 	else
 		HELPFILE="/usr/share/doc/idrive-wrapper/idrive-wrapper_manual.txt"
-
 	fi
 
 	#Check for required external commands
@@ -72,7 +71,7 @@ init_script(){
 #---  FUNCTION  ----------------------------------------------------------------
 #          NAME:  process_options
 #   DESCRIPTION:  Process the command line options
-#    PARAMETERS:  Cmd Line Arg COunt, Cmd Line Args
+#    PARAMETERS:  Cmd Line Arg Count, Cmd Line Args
 #       RETURNS:  na
 #-------------------------------------------------------------------------------
 process_options(){
@@ -236,7 +235,7 @@ read_config(){
 
 #---  FUNCTION  ----------------------------------------------------------------
 #          NAME:  call_commands
-#   DESCRIPTION:  This function will call the required functions based on user i
+#   DESCRIPTION:  This function will call the required functions based on user 
 #		  options from command line
 #    PARAMETERS:  na
 #       RETURNS:  na
@@ -277,7 +276,8 @@ call_commands(){
 ##COMMAND FUNCTIONS##
 #---  FUNCTION  ----------------------------------------------------------------
 #          NAME:  upload
-#   DESCRIPTION:  Upload files/folders to IDrive based on config file
+#   DESCRIPTION:  Upload files/folders to IDrive based on config file or the
+#		  the list given in command line
 #    PARAMETERS:  na
 #       RETURNS:  na
 #-------------------------------------------------------------------------------
@@ -313,7 +313,8 @@ upload(){
 
 #---  FUNCTION  ----------------------------------------------------------------
 #          NAME:  delete
-#   DESCRIPTION:  Delete files/folder to IDrive based on config file
+#   DESCRIPTION:  Delete files/folder to IDrive based on config file or the 
+#		  list given in the command line
 #    PARAMETERS:  na
 #       RETURNS:  na
 #-------------------------------------------------------------------------------
@@ -346,8 +347,8 @@ delete(){
 #---  FUNCTION  ----------------------------------------------------------------
 #          NAME:  download
 #   DESCRIPTION:  Download a file based on specified path as argument
-#    PARAMETERS:  
-#       RETURNS:  
+#    PARAMETERS:  na
+#       RETURNS:  na
 #-------------------------------------------------------------------------------
 download(){
 	filelist_download="${WORKDIR}"/"${USERID}"_DOWNLOAD
@@ -452,8 +453,8 @@ file_properties(){
 
 #---  FUNCTION  ----------------------------------------------------------------
 #          NAME:  show_help
-#   DESCRIPTION:  Show the help function onto STDOUT
-#    PARAMETERS:  1-Brief help for options, 2-Detailed help by reading from help file
+#   DESCRIPTION:  Show the help content onto STDOUT
+#    PARAMETERS:  1-Brief help for options, 2-Detailed help
 #       RETURNS:  na
 #-------------------------------------------------------------------------------
 show_help(){
@@ -476,7 +477,7 @@ show_help(){
 
 #---  FUNCTION  ----------------------------------------------------------------
 #          NAME:  show_version
-#   DESCRIPTION:  Show the current program version
+#   DESCRIPTION:  Show the current program version and idensutil version
 #    PARAMETERS:  na
 #       RETURNS:  na
 #-------------------------------------------------------------------------------
@@ -521,8 +522,8 @@ get_server(){
 #          NAME:  backup_ACL
 #   DESCRIPTION:  Backup the ACLs for the files and folders included in this run. 
 #                 Save filename with timestamp to make it unique for each run.
-#    PARAMETERS:  
-#       RETURNS:  
+#    PARAMETERS:  na
+#       RETURNS:  na
 #-------------------------------------------------------------------------------
 backup_ACL(){
 	if [ "${ACL_BACKUP}" = "" ] ; then
@@ -556,29 +557,28 @@ backup_ACL(){
 
 #---  FUNCTION  ----------------------------------------------------------------
 #          NAME:  data_size_interpreter
-#   DESCRIPTION:  Get a number in bytes and then based on how big is the file return the appropriate size in B,KB,MB,GB
-#    PARAMETERS:  number, size of file in bytes
-#       RETURNS:  string, size with units
+#   DESCRIPTION:  Get a number in bytes and then based on how big is the file i
+#		  return the appropriate size in B,KB,MB,GB
+#    PARAMETERS:  na
+#       RETURNS:  na
 #-------------------------------------------------------------------------------
 data_size_interpreter(){
 	INTERPRETED_SIZE=""
 	if [ $1 -lt 1024 ] ; then
 		INTERPRETED_SIZE=$1" B"
-	elif [ $1 -lt 1048576 ] ; then
-		if [ ${C_bc_AVAILABLE:-0} -eq 1 ] ; then
+	elif [ ${C_bc_AVAILABLE:-0} -eq 1 ] ; then
+		if [ $1 -lt 1048576 ] ; then
 			INTERPRETED_SIZE=`echo "scale=2;$1/1024" | bc`" KB"
-		else 
-			INTERPRETED_SIZE=`expr $1 / 1024`" KB"
-		fi
-	elif [ $1 -lt 1073741824 ] ; then 
-		if [ ${C_bc_AVAILABLE:-0} -eq 1 ] ; then
+		elif [ $1 -lt 1073741824 ] ; then 
 			INTERPRETED_SIZE=`echo "scale=2;$1/1048576" | bc`" MB"
 		else
-			INTERPRETED_SIZE=`expr $1 / 1048576`" MB"
-		fi
-	else
-		if [ ${C_bc_AVAILABLE:-0} -eq 1 ] ; then
 			INTERPRETED_SIZE=`echo "scale=2;$1/1073741824" | bc`" GB"
+		fi
+	else		
+		if [ $1 -lt 1048576 ] ; then
+			INTERPRETED_SIZE=`expr $1 / 1024`" KB"
+		elif [ $1 -lt 1073741824 ] ; then 
+			INTERPRETED_SIZE=`expr $1 / 1048576`" MB"
 		else
 			INTERPRETED_SIZE=`expr $1 / 1073741824`" GB"
 		fi
